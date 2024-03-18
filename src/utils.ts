@@ -1,4 +1,4 @@
-import {FeatureFlagValue, ICSS, IOption, IUser, UrlMatchType, VariationDataType} from "./types";
+import {FeatureFlagValue, IOption, IUser, VariationDataType} from "./types";
 import {logger} from "./logger";
 
 
@@ -124,28 +124,6 @@ export function validateOption(option: IOption): string | null {
   return null;
 }
 
-/******************** draggable begin ************************/
-export function makeElementDraggable(el) {
-  el.addEventListener('mousedown', function(this: HTMLElement, e) {
-    var offsetX = e.clientX - parseInt(window.getComputedStyle(this).left);
-    var offsetY = e.clientY - parseInt(window.getComputedStyle(this).top);
-    
-    function mouseMoveHandler(e) {
-      e.preventDefault();
-      el.style.top = (e.clientY - offsetY) + 'px';
-      el.style.left = (e.clientX - offsetX) + 'px';
-    }
-
-    function reset() {
-      document.removeEventListener('mousemove', mouseMoveHandler);
-      document.removeEventListener('mouseup', reset);
-    }
-
-    document.addEventListener('mousemove', mouseMoveHandler);
-    document.addEventListener('mouseup', reset);
-  });
-}
-/******************** draggable end ************************/
 
 // add style to html element
 export function addCss(element: HTMLElement, style: { [key: string]: string }) {
@@ -186,50 +164,3 @@ export function generateConnectionToken(text: string): string {
 }
 
 /********************** encode text end *****************************/
-
-// test if the current page url mathch the given url
-export function isUrlMatch(matchType: UrlMatchType, url: string): boolean {
-  const current_page_url = window.location.href;
-  if (url === null || url === undefined || url === '') {
-    return true;
-  }
-  
-  switch(matchType){
-    case UrlMatchType.Substring:
-      return current_page_url.includes(url);
-    default:
-      return false;
-  }
-}
-
-export function groupBy (xs: any, key: string): {[key: string] : any} {
-  return xs.reduce(function(rv, x) {
-    (rv[x[key]] = rv[x[key]] || []).push(x);
-    return rv;
-  }, {});
-};
-
-export function extractCSS(css: string): ICSS[] {
-  return css.trim().replace(/(?:\r\n|\r|\n)/g, ';')
-    .replace(/\w*([\W\w])+\{/g, '')
-    .replace(/(?:\{|\})/g, '')
-    .split(';')
-    .filter(c => c.trim() !== '')
-    .map(c => {
-      const style = c.split(':');
-      if (style.length === 2) {
-        return {
-          name: style[0].trim(),
-          value: style[1].trim()
-        }
-      }
-      
-      return {
-        name: '',
-        value: ''
-      }
-    })
-    .filter(s => {
-      return s.name !== '' && s.value !== ''
-    });
-}

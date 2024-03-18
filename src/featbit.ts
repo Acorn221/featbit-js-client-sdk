@@ -1,4 +1,3 @@
-import devMode from "./devmode";
 import {eventHub} from "./events";
 import {logger} from "./logger";
 import store from "./store";
@@ -27,21 +26,9 @@ import {
   insightsTopic,
   websocketReconnectTopic
 } from "./constants";
-import autoCapture from "./autocapture";
-
 
 function createOrGetAnonymousUser(): IUser {
   let sessionId = generateGuid();
-  var c_name = 'JSESSIONID';
-  if (document.cookie.length > 0) {
-    let c_start = document.cookie.indexOf(c_name + "=")
-    if (c_start != -1) {
-      c_start = c_start + c_name.length + 1
-      let c_end = document.cookie.indexOf(";", c_start)
-      if (c_end == -1) c_end = document.cookie.length
-      sessionId = unescape(document.cookie.substring(c_start, c_end));
-    }
-  }
 
   return {
     name: sessionId,
@@ -66,7 +53,6 @@ export class FB {
   private _option: IOption = {
     secret: '',
     api: '',
-    devModePassword: '',
     enableDataSync: true,
     appType: 'javascript'
   };
@@ -114,7 +100,7 @@ export class FB {
           this._readyEventEmitted = true;
           eventHub.emit('ready', mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()));
         }
-      }catch(err) {
+      } catch(err) {
         logger.log('data sync error', err);
       }
     });
@@ -162,10 +148,7 @@ export class FB {
     
     await this.identify(option.user || createOrGetAnonymousUser());
 
-    // TODO uncomment the following code
-    // if (this._option.enableDataSync) {
-    //   autoCapture.init();
-    // }
+
   }
 
   async identify(user: IUser): Promise<void> {
@@ -185,18 +168,6 @@ export class FB {
     networkService.identify(this._option.user, isUserChanged);
 
     await this.bootstrap(this._option.bootstrap, isUserChanged);
-  }
-
-  activateDevMode(password: string){
-    devMode.activateDevMode(password);
-  }
-
-  openDevModeEditor() {
-    devMode.openEditor();
-  }
-
-  quitDevMode() {
-    devMode.quit();
   }
 
   async logout(): Promise<IUser> {
@@ -235,15 +206,12 @@ export class FB {
         logger.log('data sync error', err);
       }
 
-      store.isDevMode = !!store.isDevMode;
     }
 
     if (!this._readyEventEmitted) {
       this._readyEventEmitted = true;
       eventHub.emit('ready', mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()));
     }
-
-    devMode.init(this._option.devModePassword || uuid());
   }
 
   private async dataSync(forceFullFetch?: boolean): Promise<any> {
@@ -340,8 +308,6 @@ const variationWithInsightBuffer = (key: string, defaultResult: string | boolean
 }
 
 const client = new FB();
-window['activateFeatbitDevMode'] = (password: string) => client.activateDevMode(password);
-window['quitFeatbitDevMode'] = () => client.quitDevMode();
 
 export default client;
 

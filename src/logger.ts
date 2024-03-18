@@ -1,13 +1,9 @@
-import { debugModeQueryStr } from "./constants";
-
-// get debug mode from query string
-const queryString = window.location.search;
-const urlParams = new URLSearchParams(queryString);
-const debugModeParam = urlParams.get(debugModeQueryStr);
+// ! Debug mode is set here, it should probably be moved
+const debug = true;
 
 export const logger = {
     logDebug(...args) {
-        if (debugModeParam === 'true') {
+        if (debug) {
             console.log(...args);
         }
     },
