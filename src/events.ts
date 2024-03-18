@@ -13,12 +13,13 @@ class EventEmitter {
 
     return {
       unsubscribe: () =>
-        this.events[name] && this.events[name].splice(this.events[name].indexOf(cb) >>> 0, 1)
+        this.events[name] &&
+        this.events[name].splice(this.events[name].indexOf(cb) >>> 0, 1),
     };
   }
 
   public emit(name: string, ...args: any[]): void {
-    (this.events[name] || []).forEach(fn => fn(...args));
+    (this.events[name] || []).forEach((fn) => fn(...args));
   }
 }
 

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This is the client side SDK for the feature management platform [FeatBit](https://github.com/featbit/featbit). 
+This is the client side SDK for the feature management platform [FeatBit](https://github.com/featbit/featbit).
 
 Be aware, this is a client side SDK, it is intended for use in a single-user context, which can be mobile, desktop or embedded applications. This SDK can only be ran in a browser environment, it is not suitable for NodeJs applications.
 
@@ -16,7 +16,7 @@ npm install featbit-js-client-sdk
 
 ### Prerequisite
 
-Before using the SDK, you need to obtain the environment secret and SDK URLs. 
+Before using the SDK, you need to obtain the environment secret and SDK URLs.
 
 Follow the documentation below to retrieve these values
 
@@ -26,26 +26,27 @@ Follow the documentation below to retrieve these values
 ### Quick Start
 
 The following code demonstrates:
+
 1. Initialize the SDK
 2. Evaluate flag
 3. Subscribe to flag change
 
 ```javascript
-import fbClient from 'featbit-js-client-sdk';
+import fbClient from "featbit-js-client-sdk";
 
 const option = {
   secret: "your env secret",
-  api:"http://localhost:5100", // the Streaming URL
+  api: "http://localhost:5100", // the Streaming URL
   user: {
     name: "Bot",
     keyId: "bot-id",
     customizedProperties: [
       {
-        "name": "level",
-        "value": "high"
-      }
-    ]
-  }
+        name: "level",
+        value: "high",
+      },
+    ],
+  },
 };
 
 // initialization
@@ -55,12 +56,12 @@ fbClient.init(option);
 const flagValue = fbClient.variation("YOUR_FEATURE_KEY", defaultValue);
 
 // subscribe to flag change
-fbClient.on('ff_update:YOUR_FEATURE_KEY', (change) => {
+fbClient.on("ff_update:YOUR_FEATURE_KEY", (change) => {
   // change has this structure {id: 'the feature_flag_key', oldValue: theOldValue, newValue: theNewValue }
   // the type of theOldValue and theNewValue is defined on FeatBit
 
   // defaultValue should have the same type as theOldValue and theNewValue
-  const myFeature = fbClient.variation('YOUR_FEATURE_KEY', defaultValue);
+  const myFeature = fbClient.variation("YOUR_FEATURE_KEY", defaultValue);
 });
 ```
 
@@ -78,42 +79,44 @@ Before initializing the SDK, you need to get the client-side env secret of your 
 ```javascript
 const option = {
   secret: "your env secret",
-  api:"http://localhost:5100", // the Streaming URL
+  api: "http://localhost:5100", // the Streaming URL
   user: {
     name: "Bot",
     keyId: "bot-id",
     customizedProperties: [
       {
-          "name": "level",
-          "value": "high"
-      }
-    ]
-  }
+        name: "level",
+        value: "high",
+      },
+    ],
+  },
 };
 
 fbClient.init(option);
 ```
 
 The user has three properties:
-- name(**requried**):  The user's name, useful when viewing users in the portal.
+
+- name(**requried**): The user's name, useful when viewing users in the portal.
 - keyId(**requried**): The unique user identifier.
 - api: The streaming URL.
 - customizedProperties(**optional**): Any other customized properties. Users can be targeted by these customized properties. Here is the format definition:
+
 ```json
- [
-   {
-     "name": "the name of the property",
-     "value": "the value of the property"
-   }
+[
+  {
+    "name": "the name of the property",
+    "value": "the value of the property"
+  }
 ]
 ```
 
 This table lists all available options
 
 | Options               | Defaults                | Description                                                                                                                                                                                              |
-|-----------------------|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| --------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | secret (**required**) | -                       | The client side secret of your environment.                                                                                                                                                              |
-| user   (**required**) | -                       | The user connected to your APP, can be ignored if anonymous equals to true.                                                                                                                              |
+| user (**required**)   | -                       | The user connected to your APP, can be ignored if anonymous equals to true.                                                                                                                              |
 | anonymous             | `false`                 | Set to true if you want to use a anonymous user, which is the case before user login to your APP. If that is your case, the user can be set later with the identify method after the user has logged in. |
 | enableDataSync        | `true`                  | Set to false if you do not want to sync data with remote server, in this case feature flags must be set to bootstrap option or be passed to the method bootstrap.                                        |
 | bootstrap             | `[ ]`                   | Init the SDK with feature flags, this will trigger the ready event immediately instead of requesting from the remote.                                                                                    |
@@ -122,7 +125,9 @@ This table lists all available options
 | devModePassword       | `''`                    | If set, the developer mode is enabled. To activate it, you need to call the method activateDevMode with password.                                                                                        |
 
 ### Bootstrap
+
 If you already have the feature flags available, two ways to pass them to the SDK instead of requesting from the remote.
+
 - By the **init** method
 
 ```javascript
@@ -148,14 +153,16 @@ fbClient.init(option);
 
 ```javascript
 // this array should contain all your feature flags
-const featureflags = [{
-  // feature flag key name
-  id: string,
-  // variation value
-  variation: string,
-  // variation data type, string will used if not specified
-  variationType: string
-}]
+const featureflags = [
+  {
+    // feature flag key name
+    id: string,
+    // variation value
+    variation: string,
+    // variation data type, string will used if not specified
+    variationType: string,
+  },
+];
 
 fbClient.bootstrap(featureflags);
 ```
@@ -182,7 +189,7 @@ To find out when the client is ready, you can use one of two mechanisms: events 
 The client object can emit JavaScript events. It emits a ready event when it receives initial flag values from the server. You can listen for this event to determine when the client is ready to evaluate flags.
 
 ```javascript
-fbClient.on('ready', (data) => {
+fbClient.on("ready", (data) => {
   // data has the following structure [ {id: 'featureFlagKey', variation: variationValue} ]
   // variationValue has the type as defined on remote
   var flagValue = fbClient.variation("YOUR_FEATURE_KEY", defaultValue);
@@ -207,59 +214,60 @@ The SDK only decides initialization has failed if it receives an error response 
 #### Subscribe to flag(s) changes
 
 To get notified when a feature flag is changed, we offer two methods
+
 - subscribe to the changes of any feature flag(s)
 
 ```javascript
-fbClient.on('ff_update', (changes) => {
+fbClient.on("ff_update", (changes) => {
   // changes has this structure [{id: 'the feature_flag_key', oldValue: theOldValue, newValue: theNewValue }]
   // the type of theOldValue and theNewValue is defined on FeatBit
-  
   // do something when any feature flag changes
 });
-
 ```
+
 - subscribe to the changes of a specific feature flag
 
 ```javascript
 // replace feature_flag_key with your feature flag key
-fbClient.on('ff_update:feature_flag_key', (change) => {
+fbClient.on("ff_update:feature_flag_key", (change) => {
   // change has this structure {id: 'the feature_flag_key', oldValue: theOldValue, newValue: theNewValue }
   // the type of theOldValue and theNewValue is defined on FeatBit
 
   // defaultValue should have the same type as theOldValue and theNewValue
   // this is the prefered way than calling change.newValue as each time you call fbClient.variation,
   // the insight data is sent to server automatically
-  const myFeature = fbClient.variation('feature_flag_key', defaultValue);
+  const myFeature = fbClient.variation("feature_flag_key", defaultValue);
 });
-
 ```
 
 ### Switch user after initialization
+
 If the user parameter cannot be passed by the init method, the following method can be used to set the user after initialization.
 
 ```javascript
-  fbClient.identify(user);
+fbClient.identify(user);
 ```
 
 We can manually call the method logout, which will switch the current user back to anonymous user if exists already or create a new anonymous user.
 
 ```javascript
-  fbClient.logout(user);
+fbClient.logout(user);
 ```
 
 ### Developer mode
+
 Developer mode is a powerful tool we created allowing developers to manipulate the feature flags locally instead of modifying them on remote server. **This will not change the remote values**.
 
 To activate the developer mode, the activateDevMode method should be called as following, the password parameter is
 
 ```javascript
-// This will activate developer mode, you should be able to see an icon on bottom right of the screen. 
+// This will activate developer mode, you should be able to see an icon on bottom right of the screen.
 // PASSWORD is mandatory and it should be the same as the value passed to option
-fbClient.activateFeatbitDevMode('PASSWORD');
+fbClient.activateFeatbitDevMode("PASSWORD");
 
 // or
 // this method is equivalent to fbClient.activateDevMode('PASSWORD')
-window.activateFeatbitDevMode('PASSWORD'); 
+window.activateFeatbitDevMode("PASSWORD");
 ```
 
 To open the developer mode editor or quit developer mode, use the following code:
@@ -283,11 +291,11 @@ We use websocket to make the local data synchronized with the server, and then s
 ### Network failure handling
 
 As all data is stored locally in the localStorage, in the following situations, the SDK would still work when there is temporarily no internet connection:
+
 - it has already received the data from previous connections
 - the fbClient.bootstrap(featureFlags) method is called with all necessary feature flags
 
 In the meantime, the SDK would try to reconnect to the server by an incremental interval, this makes sure that the websocket would be restored when the internet connection is back.
-
 
 ### Experiments (A/B/n Testing)
 
@@ -296,10 +304,12 @@ We support automatic experiments for page views and clicks, you just need to set
 In case you need more control over the experiment data sent to our server, we offer a method to send custom event.
 
 ```javascript
-fbClient.sendCustomEvent([{
-  eventName: 'your event name',
-  numericValue: 1
-}])
+fbClient.sendCustomEvent([
+  {
+    eventName: "your event name",
+    numericValue: 1,
+  },
+]);
 ```
 
 **numericValue** is not mandatory, the default value is **1**.

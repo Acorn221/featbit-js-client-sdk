@@ -1,7 +1,14 @@
 import { websocketReconnectTopic } from "./constants";
 import { eventHub } from "./events";
 import { logger } from "./logger";
-import { IExptMetricSetting, IInsight, InsightType, IStreamResponse, IUser, IZeroCode } from "./types";
+import {
+  IExptMetricSetting,
+  IInsight,
+  InsightType,
+  IStreamResponse,
+  IUser,
+  IZeroCode,
+} from "./types";
 import { generateConnectionToken } from "./utils";
 import throttleUtil from "./throttleutil";
 
@@ -15,7 +22,7 @@ class NetworkService {
 
   private retryCounter = 0;
 
-  constructor(){}
+  constructor() {}
 
   init(api: string, secret: string, appType: string) {
     this.api = api;
@@ -35,23 +42,25 @@ class NetworkService {
   private sendUserIdentifyMessage(timestamp: number) {
     const { name, keyId, customizedProperties } = this.user!;
     const payload = {
-      messageType: 'data-sync',
+      messageType: "data-sync",
       data: {
         user: {
           name,
           keyId,
           customizedProperties,
         },
-        timestamp
-      }
+        timestamp,
+      },
     };
 
     try {
       if (this.socket?.readyState === WebSocket.OPEN) {
-        logger.logDebug('sending user identify message');
+        logger.logDebug("sending user identify message");
         this.socket?.send(JSON.stringify(payload));
       } else {
-        logger.logDebug(`didn't send user identify message because socket not open`);
+        logger.logDebug(
+          `didn't send user identify message because socket not open`,
+        );
       }
     } catch (err) {
       logger.logDebug(err);
@@ -62,9 +71,12 @@ class NetworkService {
 
   private reconnect() {
     this.socket = null;
-    const waitTime = socketConnectionIntervals[Math.min(this.retryCounter++, socketConnectionIntervals.length - 1)];
+    const waitTime =
+      socketConnectionIntervals[
+        Math.min(this.retryCounter++, socketConnectionIntervals.length - 1)
+      ];
     setTimeout(() => {
-      logger.logDebug('emit reconnect event');
+      logger.logDebug("emit reconnect event");
       eventHub.emit(websocketReconnectTopic, {});
     }, waitTime);
     logger.logDebug(waitTime);
@@ -72,14 +84,14 @@ class NetworkService {
 
   private sendPingMessage() {
     const payload = {
-      messageType: 'ping',
-      data: null
+      messageType: "ping",
+      data: null,
     };
 
     setTimeout(() => {
       try {
         if (this.socket?.readyState === WebSocket.OPEN) {
-          logger.logDebug('sending ping')
+          logger.logDebug("sending ping");
           this.socket.send(JSON.stringify(payload));
           this.sendPingMessage();
         } else {
@@ -92,7 +104,10 @@ class NetworkService {
     }, 18000);
   }
 
-  createConnection(timestamp: number, onMessage: (response: IStreamResponse) => any) {
+  createConnection(
+    timestamp: number,
+    onMessage: (response: IStreamResponse) => any,
+  ) {
     const that = this;
     if (that.socket) {
       onMessage({} as IStreamResponse);
@@ -101,41 +116,47 @@ class NetworkService {
 
     const startTime = Date.now();
     // Create WebSocket connection.
-    const url = this.api?.replace(/^http/, 'ws') + `/streaming?type=client&token=${generateConnectionToken(this.secret!)}`;
+    const url =
+      this.api?.replace(/^http/, "ws") +
+      `/streaming?type=client&token=${generateConnectionToken(this.secret!)}`;
     that.socket = new WebSocket(url);
 
     // Connection opened
-    that.socket.addEventListener('open', function (this: WebSocket, event) {
+    that.socket.addEventListener("open", function (this: WebSocket, event) {
       that.retryCounter = 0;
       // this is the websocket instance to which the current listener is binded to, it's different from that.socket
       logger.logDebug(`Connection time: ${Date.now() - startTime} ms`);
       that.sendUserIdentifyMessage(timestamp);
       that.sendPingMessage();
     });
-  
+
     // Connection closed
-    that.socket.addEventListener('close', function (event) {
-      logger.logDebug('close');
-      if (event.code === 4003) { // do not reconnect when 4003
+    that.socket.addEventListener("close", function (event) {
+      logger.logDebug("close");
+      if (event.code === 4003) {
+        // do not reconnect when 4003
         return;
       }
 
       that.reconnect();
     });
-  
+
     // Connection error
-    that.socket!.addEventListener('error', function (event) {
+    that.socket!.addEventListener("error", function (event) {
       // reconnect
-      logger.logDebug('error');
+      logger.logDebug("error");
     });
-  
+
     // Listen for messages
-    that.socket.addEventListener('message', function (event) {
+    that.socket.addEventListener("message", function (event) {
       const message = JSON.parse(event.data);
-      if (message.messageType === 'data-sync') {
+      if (message.messageType === "data-sync") {
         onMessage(message.data);
         if (message.data.featureFlags.length > 0) {
-          logger.logDebug('socket push update time(ms): ', Date.now() - message.data.featureFlags[0].timestamp);
+          logger.logDebug(
+            "socket push update time(ms): ",
+            Date.now() - message.data.featureFlags[0].timestamp,
+          );
         }
       }
     });
@@ -147,79 +168,119 @@ class NetworkService {
       name: name,
       keyId: keyId,
       customizedProperties: customizedProperties,
+    };
+  }
+
+  sendInsights = throttleUtil.throttleAsync(
+    async (data: IInsight[]): Promise<void> => {
+      if (!this.secret || !this.user || !data || data.length === 0) {
+        return;
+      }
+
+      try {
+        const payload = [
+          {
+            user: this.__getUserInfo(),
+            variations: data
+              .filter((d) => d.insightType === InsightType.featureFlagUsage)
+              .map((v) => ({
+                featureFlagKey: v.id,
+                sendToExperiment: v.sendToExperiment,
+                timestamp: v.timestamp,
+                variation: {
+                  id: v.variation!.id,
+                  value: v.variation!.value,
+                },
+              })),
+            metrics: data
+              .filter((d) => d.insightType !== InsightType.featureFlagUsage)
+              .map((d) => ({
+                route: location.pathname,
+                timestamp: d.timestamp,
+                numericValue:
+                  d.numericValue === null || d.numericValue === undefined
+                    ? 1
+                    : d.numericValue,
+                appType: this.appType,
+                eventName: d.eventName,
+                type: d.type,
+              })),
+          },
+        ];
+
+        await post(`${this.api}/api/public/insight/track`, payload, {
+          Authorization: this.secret,
+        });
+      } catch (err) {
+        logger.logDebug(err);
+      }
+    },
+  );
+
+  async getActiveExperimentMetricSettings(): Promise<
+    IExptMetricSetting[] | []
+  > {
+    const exptMetricSettingLocalStorageKey = "fb_expt_metric";
+    try {
+      const result = await get(`${this.api}/api/public/sdk/experiments`, {
+        Authorization: this.secret!,
+      });
+
+      localStorage.setItem(
+        exptMetricSettingLocalStorageKey,
+        JSON.stringify(result.data),
+      );
+      return result.data;
+    } catch (error) {
+      logger.log(error);
+      return !!localStorage.getItem(exptMetricSettingLocalStorageKey)
+        ? JSON.parse(
+            localStorage.getItem(exptMetricSettingLocalStorageKey) as string,
+          )
+        : [];
     }
   }
 
-  sendInsights = throttleUtil.throttleAsync(async (data: IInsight[]): Promise<void> => {
-    if (!this.secret || !this.user || !data || data.length === 0) {
-      return;
-    }
-  
+  async getZeroCodeSettings(): Promise<IZeroCode[] | []> {
+    const zeroCodeSettingLocalStorageKey = "fb_zcs";
     try {
-      const payload = [{
-        user: this.__getUserInfo(),
-        variations: data.filter(d => d.insightType === InsightType.featureFlagUsage).map(v => ({
-          featureFlagKey: v.id,
-          sendToExperiment: v.sendToExperiment,
-          timestamp: v.timestamp,
-          variation: {
-            id: v.variation!.id,
-            value: v.variation!.value
-          }
-        })),
-        metrics: data.filter(d => d.insightType !== InsightType.featureFlagUsage).map(d => ({
-          route: location.pathname,
-          timestamp: d.timestamp,
-          numericValue: d.numericValue === null || d.numericValue === undefined? 1 : d.numericValue,
-          appType: this.appType,
-          eventName: d.eventName,
-          type: d.type
-        }))
-      }];
-  
-      await post(`${this.api}/api/public/insight/track`, payload, { Authorization: this.secret });
-    } catch (err) {
-      logger.logDebug(err);
-    }
-  })
+      const result = await get(`${this.api}/api/public/sdk/zero-code`, {
+        Authorization: this.secret!,
+      });
 
-  async getActiveExperimentMetricSettings(): Promise<IExptMetricSetting[] | []> {
-    const exptMetricSettingLocalStorageKey = 'fb_expt_metric';
-    try {
-        const result = await get(`${this.api}/api/public/sdk/experiments`, { Authorization: this.secret! });
-
-        localStorage.setItem(exptMetricSettingLocalStorageKey, JSON.stringify(result.data));
-        return result.data;
-    } catch (error) {
-        logger.log(error);
-        return !!localStorage.getItem(exptMetricSettingLocalStorageKey) ? JSON.parse(localStorage.getItem(exptMetricSettingLocalStorageKey) as string) : [];
-    }
-}
-
-async getZeroCodeSettings(): Promise<IZeroCode[] | []> {
-    const zeroCodeSettingLocalStorageKey = 'fb_zcs';
-    try {
-        const result = await get(`${this.api}/api/public/sdk/zero-code`, { Authorization: this.secret! });
-
-        localStorage.setItem(zeroCodeSettingLocalStorageKey, JSON.stringify(result.data));
-        return result.data;
+      localStorage.setItem(
+        zeroCodeSettingLocalStorageKey,
+        JSON.stringify(result.data),
+      );
+      return result.data;
     } catch (error) {
       logger.log(error);
-        return !!localStorage.getItem(zeroCodeSettingLocalStorageKey) ? JSON.parse(localStorage.getItem(zeroCodeSettingLocalStorageKey) as string) : [];
+      return !!localStorage.getItem(zeroCodeSettingLocalStorageKey)
+        ? JSON.parse(
+            localStorage.getItem(zeroCodeSettingLocalStorageKey) as string,
+          )
+        : [];
     }
-}
+  }
 }
 
 export const networkService = new NetworkService();
 
-export async function post(url: string = '', data: any = {}, headers: { [key: string]: string } = {}) {
+export async function post(
+  url: string = "",
+  data: any = {},
+  headers: { [key: string]: string } = {},
+) {
   try {
     const response = await fetch(url, {
-      method: 'POST',
-      headers: Object.assign({
-        'Content-Type': 'application/json'
-      }, headers),
-      body: JSON.stringify(data) // body data type must match "Content-Type" header
+      method: "POST",
+      headers: Object.assign(
+        {
+          "Content-Type": "application/json",
+        },
+        headers,
+      ),
+      body: JSON.stringify(data), // body data type must match "Content-Type" header
     });
 
     return response.status === 200 ? response.json() : {};
@@ -229,14 +290,20 @@ export async function post(url: string = '', data: any = {}, headers: { [key: st
   }
 }
 
-export async function get(url: string = '', headers: { [key: string]: string } = {}) {
+export async function get(
+  url: string = "",
+  headers: { [key: string]: string } = {},
+) {
   try {
     const response = await fetch(url, {
-      method: 'GET',
-      headers: Object.assign({
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }, headers)
+      method: "GET",
+      headers: Object.assign(
+        {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        headers,
+      ),
     });
 
     return response.status === 200 ? response.json() : {};

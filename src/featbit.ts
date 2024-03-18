@@ -1,7 +1,7 @@
-import {eventHub} from "./events";
-import {logger} from "./logger";
+import { eventHub } from "./events";
+import { logger } from "./logger";
 import store from "./store";
-import {networkService} from "./network.service";
+import { networkService } from "./network.service";
 import {
   FeatureFlagValue,
   ICustomEvent,
@@ -15,16 +15,22 @@ import {
   IStreamResponse,
   IUser,
   StreamResponseEventType,
-  VariationDataType
+  VariationDataType,
 } from "./types";
-import {generateGuid, parseVariation, serializeUser, uuid, validateOption, validateUser} from "./utils";
-import {Queue} from "./queue";
+import {
+  generateGuid,
+  parseVariation,
+  serializeUser,
+  validateOption,
+  validateUser,
+} from "./utils";
+import { Queue } from "./queue";
 import {
   featureFlagEvaluatedBufferTopic,
   featureFlagEvaluatedTopic,
   insightsFlushTopic,
   insightsTopic,
-  websocketReconnectTopic
+  websocketReconnectTopic,
 } from "./constants";
 
 function createOrGetAnonymousUser(): IUser {
@@ -32,15 +38,22 @@ function createOrGetAnonymousUser(): IUser {
 
   return {
     name: sessionId,
-    keyId: sessionId
+    keyId: sessionId,
   };
 }
 
-function mapFeatureFlagsToFeatureFlagBaseList(featureFlags: { [key: string]: IFeatureFlag }): IFeatureFlagBase[] {
+function mapFeatureFlagsToFeatureFlagBaseList(featureFlags: {
+  [key: string]: IFeatureFlag;
+}): IFeatureFlagBase[] {
   return Object.keys(featureFlags).map((cur) => {
     const { id, variation } = featureFlags[cur];
-    const variationType = featureFlags[cur].variationType || VariationDataType.string;
-    return { id, variation: parseVariation(variationType, variation), variationType };
+    const variationType =
+      featureFlags[cur].variationType || VariationDataType.string;
+    return {
+      id,
+      variation: parseVariation(variationType, variation),
+      variationType,
+    };
   });
 }
 
@@ -48,45 +61,57 @@ export class FB {
   private _readyEventEmitted: boolean = false;
   private _readyPromise: Promise<IFeatureFlagBase[]>;
 
-  private _insightsQueue: Queue<IInsight> = new Queue<IInsight>(1, insightsFlushTopic);
-  private _featureFlagEvaluationBuffer: Queue<IFeatureFlagVariationBuffer> = new Queue<IFeatureFlagVariationBuffer>();
+  private _insightsQueue: Queue<IInsight> = new Queue<IInsight>(
+    1,
+    insightsFlushTopic,
+  );
+  private _featureFlagEvaluationBuffer: Queue<IFeatureFlagVariationBuffer> =
+    new Queue<IFeatureFlagVariationBuffer>();
   private _option: IOption = {
-    secret: '',
-    api: '',
+    secret: "",
+    api: "",
     enableDataSync: true,
-    appType: 'javascript'
+    appType: "javascript",
   };
 
   constructor() {
     this._readyPromise = new Promise<IFeatureFlagBase[]>((resolve, reject) => {
-      this.on('ready', () => {
+      this.on("ready", () => {
         const featureFlags = store.getFeatureFlags();
         resolve(mapFeatureFlagsToFeatureFlagBaseList(featureFlags));
-        if (this._option.enableDataSync){
-          const buffered = this._featureFlagEvaluationBuffer.flush().map(f => {
-            const featureFlag = featureFlags[f.id];
-            if (!featureFlag) {
-              logger.log(`Called unexisting feature flag: ${f.id}`);
-              return null;
-            }
-            
-            const variation = featureFlag.variationOptions.find(o => o.value === f.variationValue);
-            if (!variation) {
-              logger.log(`Sent buffered insight for feature flag: ${f.id} with unexisting default variation: ${f.variationValue}`);
-            } else {
-              logger.logDebug(`Sent buffered insight for feature flag: ${f.id} with variation: ${variation.value}`);
-            }
+        if (this._option.enableDataSync) {
+          const buffered = this._featureFlagEvaluationBuffer
+            .flush()
+            .map((f) => {
+              const featureFlag = featureFlags[f.id];
+              if (!featureFlag) {
+                logger.log(`Called unexisting feature flag: ${f.id}`);
+                return null;
+              }
 
-            return {
-              insightType: InsightType.featureFlagUsage,
-              id: featureFlag.id,
-              timestamp: f.timestamp,
-              sendToExperiment: featureFlag.sendToExperiment,
-              variation: variation || { id: -1, value: f.variationValue }
-            }
-          });
+              const variation = featureFlag.variationOptions.find(
+                (o) => o.value === f.variationValue,
+              );
+              if (!variation) {
+                logger.log(
+                  `Sent buffered insight for feature flag: ${f.id} with unexisting default variation: ${f.variationValue}`,
+                );
+              } else {
+                logger.logDebug(
+                  `Sent buffered insight for feature flag: ${f.id} with variation: ${variation.value}`,
+                );
+              }
 
-          networkService.sendInsights(buffered.filter(x => !!x));
+              return {
+                insightType: InsightType.featureFlagUsage,
+                id: featureFlag.id,
+                timestamp: f.timestamp,
+                sendToExperiment: featureFlag.sendToExperiment,
+                variation: variation || { id: -1, value: f.variationValue },
+              };
+            });
+
+          networkService.sendInsights(buffered.filter((x) => !!x));
         }
       });
     });
@@ -94,24 +119,30 @@ export class FB {
     // reconnect to websocket
     eventHub.subscribe(websocketReconnectTopic, async () => {
       try {
-        logger.logDebug('reconnecting');
+        logger.logDebug("reconnecting");
         await this.dataSync();
         if (!this._readyEventEmitted) {
           this._readyEventEmitted = true;
-          eventHub.emit('ready', mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()));
+          eventHub.emit(
+            "ready",
+            mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()),
+          );
         }
-      } catch(err) {
-        logger.log('data sync error', err);
+      } catch (err) {
+        logger.log("data sync error", err);
       }
     });
 
-    eventHub.subscribe(featureFlagEvaluatedBufferTopic, (data: IFeatureFlagVariationBuffer) => {
-      this._featureFlagEvaluationBuffer.add(data);
-    });
+    eventHub.subscribe(
+      featureFlagEvaluatedBufferTopic,
+      (data: IFeatureFlagVariationBuffer) => {
+        this._featureFlagEvaluationBuffer.add(data);
+      },
+    );
 
     // track feature flag usage data
     eventHub.subscribe(insightsFlushTopic, () => {
-      if (this._option.enableDataSync){
+      if (this._option.enableDataSync) {
         networkService.sendInsights(this._insightsQueue.flush());
       }
     });
@@ -134,21 +165,27 @@ export class FB {
   }
 
   async init(option: IOption) {
-    const validateOptionResult = validateOption({...this._option, ...option});
+    const validateOptionResult = validateOption({ ...this._option, ...option });
     if (validateOptionResult !== null) {
       logger.log(validateOptionResult);
       return;
     }
 
-    this._option = {...this._option, ...option, ...{ api: (option.api || this._option.api)?.replace(/\/$/, '') }};
+    this._option = {
+      ...this._option,
+      ...option,
+      ...{ api: (option.api || this._option.api)?.replace(/\/$/, "") },
+    };
 
     if (this._option.enableDataSync) {
-      networkService.init(this._option.api!, this._option.secret, this._option.appType!);
+      networkService.init(
+        this._option.api!,
+        this._option.secret,
+        this._option.appType!,
+      );
     }
-    
+
     await this.identify(option.user || createOrGetAnonymousUser());
-
-
   }
 
   async identify(user: IUser): Promise<void> {
@@ -158,11 +195,15 @@ export class FB {
       return;
     }
 
-    user.customizedProperties = user.customizedProperties?.map(p => ({name: p.name, value: `${p.value}`}));
+    user.customizedProperties = user.customizedProperties?.map((p) => ({
+      name: p.name,
+      value: `${p.value}`,
+    }));
 
-    const isUserChanged = serializeUser(user) !== localStorage.getItem('current_user');
+    const isUserChanged =
+      serializeUser(user) !== localStorage.getItem("current_user");
     this._option.user = Object.assign({}, user);
-    localStorage.setItem('current_user', serializeUser(this._option.user));
+    localStorage.setItem("current_user", serializeUser(this._option.user));
 
     store.userId = this._option.user.keyId;
     networkService.identify(this._option.user, isUserChanged);
@@ -182,41 +223,70 @@ export class FB {
    * @param {boolean} forceFullFetch if a forced full fetch should be made.
    * @return {Promise<void>} nothing.
    */
-  async bootstrap(featureFlags?: IFeatureFlag[], forceFullFetch?: boolean): Promise<void> {
+  async bootstrap(
+    featureFlags?: IFeatureFlag[],
+    forceFullFetch?: boolean,
+  ): Promise<void> {
     featureFlags = featureFlags || this._option.bootstrap;
     if (featureFlags && featureFlags.length > 0) {
       const data = {
-        featureFlags: featureFlags.reduce((res, curr) => {
-          const { id, variation, timestamp, variationOptions, sendToExperiment, variationType } = curr;
-          res[id] = { id, variation, timestamp, variationOptions: variationOptions || [{id: 1, value: variation}], sendToExperiment, variationType: variationType || VariationDataType.string };
+        featureFlags: featureFlags.reduce(
+          (res, curr) => {
+            const {
+              id,
+              variation,
+              timestamp,
+              variationOptions,
+              sendToExperiment,
+              variationType,
+            } = curr;
+            res[id] = {
+              id,
+              variation,
+              timestamp,
+              variationOptions: variationOptions || [
+                { id: 1, value: variation },
+              ],
+              sendToExperiment,
+              variationType: variationType || VariationDataType.string,
+            };
 
-          return res;
-        }, {} as { [key: string]: IFeatureFlag })
+            return res;
+          },
+          {} as { [key: string]: IFeatureFlag },
+        ),
       };
 
       store.setFullData(data);
-      logger.logDebug('bootstrapped with full data');
+      logger.logDebug("bootstrapped with full data");
     }
 
     if (this._option.enableDataSync) {
       // start data sync
       try {
         await this.dataSync(forceFullFetch);
-      }catch(err) {
-        logger.log('data sync error', err);
+      } catch (err) {
+        logger.log("data sync error", err);
       }
-
     }
 
     if (!this._readyEventEmitted) {
       this._readyEventEmitted = true;
-      eventHub.emit('ready', mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()));
+      eventHub.emit(
+        "ready",
+        mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()),
+      );
     }
   }
 
   private async dataSync(forceFullFetch?: boolean): Promise<any> {
     return new Promise<void>((resolve, reject) => {
-      const timestamp = forceFullFetch ? 0 : Math.max(...Object.values(store.getFeatureFlags()).map(ff => ff.timestamp), 0);
+      const timestamp = forceFullFetch
+        ? 0
+        : Math.max(
+            ...Object.values(store.getFeatureFlags()).map((ff) => ff.timestamp),
+            0,
+          );
 
       networkService.createConnection(timestamp, (message: IStreamResponse) => {
         if (message && message.userKeyId === this._option.user?.keyId) {
@@ -226,25 +296,44 @@ export class FB {
             case StreamResponseEventType.full: // full data
             case StreamResponseEventType.patch: // partial data
               const data = {
-                featureFlags: featureFlags.reduce((res, curr) => {
-                  const { id, variation, timestamp, variationOptions, sendToExperiment, variationType } = curr;
-                  res[id] = { id, variation, timestamp, variationOptions, sendToExperiment, variationType: variationType || VariationDataType.string };
+                featureFlags: featureFlags.reduce(
+                  (res, curr) => {
+                    const {
+                      id,
+                      variation,
+                      timestamp,
+                      variationOptions,
+                      sendToExperiment,
+                      variationType,
+                    } = curr;
+                    res[id] = {
+                      id,
+                      variation,
+                      timestamp,
+                      variationOptions,
+                      sendToExperiment,
+                      variationType: variationType || VariationDataType.string,
+                    };
 
-                  return res;
-                }, {} as { [key: string]: IFeatureFlag })
+                    return res;
+                  },
+                  {} as { [key: string]: IFeatureFlag },
+                ),
               };
 
               if (message.eventType === StreamResponseEventType.full) {
                 store.setFullData(data);
-                logger.logDebug('synchonized with full data');
+                logger.logDebug("synchonized with full data");
               } else {
                 store.updateBulkFromRemote(data);
-                logger.logDebug('synchonized with partial data');
+                logger.logDebug("synchonized with partial data");
               }
 
               break;
             default:
-              logger.logDebug('invalid stream event type: ' + message.eventType);
+              logger.logDebug(
+                "invalid stream event type: " + message.eventType,
+              );
               break;
           }
         }
@@ -264,7 +353,9 @@ export class FB {
    */
   boolVariation(key: string, defaultResult: boolean): boolean {
     const variation = variationWithInsightBuffer(key, defaultResult);
-    return variation === undefined ? defaultResult : variation?.toLocaleLowerCase() === 'true';
+    return variation === undefined
+      ? defaultResult
+      : variation?.toLocaleLowerCase() === "true";
   }
 
   getUser(): IUser {
@@ -272,12 +363,14 @@ export class FB {
   }
 
   sendCustomEvent(data: ICustomEvent[]): void {
-    (data || []).forEach(d => this._insightsQueue.add({
-      insightType: InsightType.customEvent,
-      timestamp: Date.now(),
-      type: 'CustomEvent',
-      ...d
-    }))
+    (data || []).forEach((d) =>
+      this._insightsQueue.add({
+        insightType: InsightType.customEvent,
+        timestamp: Date.now(),
+        type: "CustomEvent",
+        ...d,
+      }),
+    );
   }
 
   sendFeatureFlagInsight(key: string, variation: string) {
@@ -294,20 +387,22 @@ export class FB {
   }
 }
 
-const variationWithInsightBuffer = (key: string, defaultResult: string | boolean) => {
+const variationWithInsightBuffer = (
+  key: string,
+  defaultResult: string | boolean,
+) => {
   const variation = store.getVariation(key);
   if (variation === undefined) {
     eventHub.emit(featureFlagEvaluatedBufferTopic, {
       id: key,
       timestamp: Date.now(),
-      variationValue: `${defaultResult}`
+      variationValue: `${defaultResult}`,
     } as IFeatureFlagVariationBuffer);
   }
 
   return variation;
-}
+};
 
 const client = new FB();
 
 export default client;
-
