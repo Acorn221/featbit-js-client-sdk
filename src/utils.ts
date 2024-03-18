@@ -27,13 +27,24 @@ export function serializeUser(user: IUser | undefined): string {
   return `${builtInProperties},${customizedProperties}`;
 }
 
-export function isNumeric(str: string) {
-  if (typeof str != "string") return false; // we only process strings!
-  // @ts-ignore
-  return (
-    !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
-    !isNaN(parseFloat(str))
-  ); // ...and ensure strings of whitespace fail
+/**
+ * Checks if a string is numeric
+ *
+ * @param {string} str - The string to check.
+ * @returns {boolean} - Returns `true` if the string is numeric, `false` otherwise.
+ */
+export function isNumeric(str: string): boolean {
+  // We only process strings, if not a string, return false
+  if (typeof str !== "string") return false; 
+
+  // Use type coercion to parse the totality of the string
+  // @ts-expect-error `parseFloat` alone doesn't achieve this
+  const isNumber = !isNaN(str);
+
+  // Ensure strings composed solely of whitespace fail
+  const parsedNumber = !isNaN(parseFloat(str));
+
+  return isNumber && parsedNumber;
 }
 
 export function parseVariation(
