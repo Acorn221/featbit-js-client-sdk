@@ -11,10 +11,11 @@ import {
 } from "./types";
 import { generateConnectionToken } from "./utils";
 import throttleUtil from "./throttleutil";
+import { FB } from "./featbit";
 
 const socketConnectionIntervals = [250, 500, 1000, 2000, 4000, 8000];
 
-class NetworkService {
+export class NetworkService {
   private user: IUser | undefined;
   private api: string | undefined;
   private secret: string | undefined;
@@ -22,7 +23,11 @@ class NetworkService {
 
   private retryCounter = 0;
 
-  constructor() {}
+  private fb: FB;
+
+  constructor(fb: FB) {
+    this.fb = fb;
+  }
 
   init(api: string, secret: string, appType: string) {
     this.api = api;
@@ -226,16 +231,16 @@ class NetworkService {
         Authorization: this.secret!,
       });
 
-      localStorage.setItem(
+      await this.fb.set(
         exptMetricSettingLocalStorageKey,
         JSON.stringify(result.data),
       );
       return result.data;
     } catch (error) {
       logger.log(error);
-      return !!localStorage.getItem(exptMetricSettingLocalStorageKey)
+      return !!(await this.fb.get(exptMetricSettingLocalStorageKey))
         ? JSON.parse(
-            localStorage.getItem(exptMetricSettingLocalStorageKey) as string,
+            (await this.fb.get(exptMetricSettingLocalStorageKey)) as string,
           )
         : [];
     }
@@ -248,23 +253,21 @@ class NetworkService {
         Authorization: this.secret!,
       });
 
-      localStorage.setItem(
+      await this.fb.set(
         zeroCodeSettingLocalStorageKey,
         JSON.stringify(result.data),
       );
       return result.data;
     } catch (error) {
       logger.log(error);
-      return !!localStorage.getItem(zeroCodeSettingLocalStorageKey)
+      return !!(this.fb.get(zeroCodeSettingLocalStorageKey))
         ? JSON.parse(
-            localStorage.getItem(zeroCodeSettingLocalStorageKey) as string,
+            (await this.fb.get(zeroCodeSettingLocalStorageKey)) as string,
           )
         : [];
     }
   }
 }
-
-export const networkService = new NetworkService();
 
 export async function post(
   url: string = "",

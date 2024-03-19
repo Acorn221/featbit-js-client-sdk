@@ -1,5 +1,7 @@
+import { Storage } from "../node_modules/@plasmohq/storage/dist/index";
 import { featureFlagEvaluatedTopic } from "./constants";
 import { eventHub } from "./events";
+import { FB } from "./featbit";
 import { logger } from "./logger";
 import {
   FeatureFlagUpdateOperation,
@@ -13,15 +15,18 @@ import { parseVariation } from "./utils";
 
 const DataStoreStorageKey = "fbdatastore";
 
-class Store {
+export class Store {
   private _isDevMode: boolean = false;
   private _userId: string | null = null;
+
+  private fb: FB;
 
   private _store: IDataStore = {
     featureFlags: {} as { [key: string]: IFeatureFlag },
   };
 
-  constructor() {
+  constructor(fb: FB) {
+    this.fb = fb;
     eventHub.subscribe(
       `devmode_ff_${FeatureFlagUpdateOperation.update}`,
       (data) => {
@@ -49,16 +54,20 @@ class Store {
           updatedFfs,
           `${DataStoreStorageKey}_dev_${this._userId}`,
           false,
-        );
-        this._loadFromStorage();
+        ).catch((err) => {
+          logger.logDebug("error while updating dev data store: " + err);
+        });
+        this._loadFromStorage().catch((err) => {
+          logger.logDebug("error while loading from storage: " + err);
+        });
       },
     );
 
     eventHub.subscribe(
       `devmode_ff_${FeatureFlagUpdateOperation.createDevData}`,
-      () => {
-        localStorage.removeItem(`${DataStoreStorageKey}_dev_${this._userId}`);
-        this._loadFromStorage();
+      async () => {
+        await this.fb.removeItem(`${DataStoreStorageKey}_dev_${this._userId}`);
+        await this._loadFromStorage();
         eventHub.emit(
           `devmode_ff_${FeatureFlagUpdateOperation.devDataCreated}`,
           this._store.featureFlags,
@@ -113,7 +122,9 @@ class Store {
         featureFlags: {} as { [key: string]: IFeatureFlag },
       };
 
-      this._dumpToStorage(this._store);
+      this._dumpToStorage(this._store).catch((err) => {
+        logger.logDebug("error while dumping to storage: " + err);
+      });
     }
 
     this.updateBulkFromRemote(data);
@@ -123,12 +134,12 @@ class Store {
     return this._store.featureFlags;
   }
 
-  updateStorageBulk(
+  async updateStorageBulk(
     data: IDataStore,
     storageKey: string,
     onlyInsertNewElement: boolean,
   ) {
-    let dataStoreStr = localStorage.getItem(storageKey);
+    let dataStoreStr = await this.fb.get(storageKey);
     let store: IDataStore | null = null;
 
     try {
@@ -158,7 +169,9 @@ class Store {
         }
       });
 
-      this._dumpToStorage(store, storageKey);
+      this._dumpToStorage(store, storageKey).catch((err) => {
+        logger.logDebug("error while dumping to storage: " + err);
+      });
     }
   }
 
@@ -166,8 +179,13 @@ class Store {
     const storageKey = `${DataStoreStorageKey}_${this._userId}`;
     const devStorageKey = `${DataStoreStorageKey}_dev_${this._userId}`;
 
-    this.updateStorageBulk(data, storageKey, false);
-    this.updateStorageBulk(data, devStorageKey, true);
+    this.updateStorageBulk(data, storageKey, false).catch(e => {
+      logger.logDebug("error while updating data store: " + e);
+    });
+
+    this.updateStorageBulk(data, devStorageKey, true).catch(e => {
+      logger.logDebug("error while updating dev data store: " + e);
+    });
 
     this._loadFromStorage();
   }
@@ -184,25 +202,25 @@ class Store {
     }
   }
 
-  private _dumpToStorage(store?: IDataStore, localStorageKey?: string): void {
+  private async _dumpToStorage(store?: IDataStore, localStorageKey?: string) {
     if (store) {
       const storageKey =
         localStorageKey || `${DataStoreStorageKey}_${this._userId}`;
-      localStorage.setItem(storageKey, JSON.stringify(store));
+      await this.fb.set(storageKey, JSON.stringify(store));
       return;
     }
     const storageKey = this._isDevMode
       ? `${DataStoreStorageKey}_dev_${this._userId}`
       : `${DataStoreStorageKey}_${this._userId}`;
-    localStorage.setItem(storageKey, JSON.stringify(this._store));
+    await this.fb.set(storageKey, JSON.stringify(this._store));
   }
 
-  private _loadFromStorage(): void {
+  private async _loadFromStorage() {
     try {
       const storageKey = this._isDevMode
         ? `${DataStoreStorageKey}_dev_${this._userId}`
         : `${DataStoreStorageKey}_${this._userId}`;
-      let dataStoreStr = localStorage.getItem(storageKey);
+      let dataStoreStr = await this.fb.get(storageKey);
 
       let shouldDumpToStorage = false;
       if (this._isDevMode) {
@@ -214,13 +232,13 @@ class Store {
             Object.keys(devData.featureFlags).length === 0
           ) {
             shouldDumpToStorage = true;
-            dataStoreStr = localStorage.getItem(
+            dataStoreStr = await this.fb.get(
               `${DataStoreStorageKey}_${this._userId}`,
             );
           }
         } catch (err) {
           shouldDumpToStorage = true;
-          dataStoreStr = localStorage.getItem(
+          dataStoreStr = await this.fb.get(
             `${DataStoreStorageKey}_${this._userId}`,
           );
         }
@@ -270,7 +288,9 @@ class Store {
       }
 
       if (shouldDumpToStorage) {
-        this._dumpToStorage();
+        this._dumpToStorage().catch((err) => {
+          logger.logDebug("error while dumping to storage: " + err);
+        });
       }
     } catch (err) {
       logger.logDebug("error while loading local data store: " + err);
@@ -278,4 +298,3 @@ class Store {
   }
 }
 
-export default new Store();

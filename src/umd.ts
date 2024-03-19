@@ -1,6 +1,6 @@
-import fbClient from './featbit';
-import { logger } from './logger';
+import { FB } from "./featbit";
+import { logger } from "./logger";
 
-logger.logDebug(`version: __VERSION__`);
+logger.logDebug("version: __VERSION__");
 
-export { fbClient }
+export { FB };

@@ -1,7 +1,5 @@
 import { eventHub } from "./events";
 import { logger } from "./logger";
-import store from "./store";
-import { networkService } from "./network.service";
 import {
   FeatureFlagValue,
   ICustomEvent,
@@ -18,9 +16,9 @@ import {
   VariationDataType,
 } from "./types";
 import {
-  generateGuid,
   parseVariation,
   serializeUser,
+  uuid,
   validateOption,
   validateUser,
 } from "./utils";
@@ -32,15 +30,10 @@ import {
   insightsTopic,
   websocketReconnectTopic,
 } from "./constants";
+import { Storage } from "../node_modules/@plasmohq/storage/dist/index";
+import { Store } from "./store";
+import { NetworkService } from "./network.service";
 
-function createOrGetAnonymousUser(): IUser {
-  let sessionId = generateGuid();
-
-  return {
-    name: sessionId,
-    keyId: sessionId,
-  };
-}
 
 function mapFeatureFlagsToFeatureFlagBaseList(featureFlags: {
   [key: string]: IFeatureFlag;
@@ -58,8 +51,10 @@ function mapFeatureFlagsToFeatureFlagBaseList(featureFlags: {
 }
 
 export class FB {
-  private _readyEventEmitted: boolean = false;
+  private _readyEventEmitted = false;
   private _readyPromise: Promise<IFeatureFlagBase[]>;
+  private store: Store;
+  private networkService: NetworkService;
 
   private _insightsQueue: Queue<IInsight> = new Queue<IInsight>(
     1,
@@ -74,10 +69,15 @@ export class FB {
     appType: "javascript",
   };
 
-  constructor() {
-    this._readyPromise = new Promise<IFeatureFlagBase[]>((resolve, reject) => {
+  storage: Storage;
+
+  constructor(storage: Storage) {
+    this.storage = storage;
+    this.store = new Store(this);
+    this.networkService = new NetworkService(this);
+    this._readyPromise = new Promise<IFeatureFlagBase[]>((resolve) => {
       this.on("ready", () => {
-        const featureFlags = store.getFeatureFlags();
+        const featureFlags = this.store.getFeatureFlags();
         resolve(mapFeatureFlagsToFeatureFlagBaseList(featureFlags));
         if (this._option.enableDataSync) {
           const buffered = this._featureFlagEvaluationBuffer
@@ -111,7 +111,7 @@ export class FB {
               };
             });
 
-          networkService.sendInsights(buffered.filter((x) => !!x));
+          this.networkService.sendInsights(buffered.filter((x) => !!x));
         }
       });
     });
@@ -125,7 +125,7 @@ export class FB {
           this._readyEventEmitted = true;
           eventHub.emit(
             "ready",
-            mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()),
+            mapFeatureFlagsToFeatureFlagBaseList(this.store.getFeatureFlags()),
           );
         }
       } catch (err) {
@@ -143,7 +143,7 @@ export class FB {
     // track feature flag usage data
     eventHub.subscribe(insightsFlushTopic, () => {
       if (this._option.enableDataSync) {
-        networkService.sendInsights(this._insightsQueue.flush());
+        this.networkService.sendInsights(this._insightsQueue.flush());
       }
     });
 
@@ -154,6 +154,18 @@ export class FB {
     eventHub.subscribe(insightsTopic, (data: IInsight) => {
       this._insightsQueue.add(data);
     });
+  }
+
+  get(key: string) {
+    return this.storage.getItem(`fb_${key}`);
+  }
+
+  set(key: string, value: string) {
+    return this.storage.setItem(`fb_${key}`, value);
+  }
+
+  removeItem(key: string) {
+    return this.storage.removeItem(`fb_${key}`);
   }
 
   on(name: string, cb: Function) {
@@ -178,14 +190,14 @@ export class FB {
     };
 
     if (this._option.enableDataSync) {
-      networkService.init(
+      this.networkService.init(
         this._option.api!,
         this._option.secret,
         this._option.appType!,
       );
     }
 
-    await this.identify(option.user || createOrGetAnonymousUser());
+    await this.identify(option.user || this.createOrGetAnonymousUser());
   }
 
   async identify(user: IUser): Promise<void> {
@@ -201,18 +213,18 @@ export class FB {
     }));
 
     const isUserChanged =
-      serializeUser(user) !== localStorage.getItem("current_user");
+      serializeUser(user) !== (await this.get("current_user"));
     this._option.user = Object.assign({}, user);
-    localStorage.setItem("current_user", serializeUser(this._option.user));
+    await this.set("current_user", serializeUser(this._option.user));
 
-    store.userId = this._option.user.keyId;
-    networkService.identify(this._option.user, isUserChanged);
+    this.store.userId = this._option.user.keyId;
+    this.networkService.identify(this._option.user, isUserChanged);
 
     await this.bootstrap(this._option.bootstrap, isUserChanged);
   }
 
   async logout(): Promise<IUser> {
-    const anonymousUser = createOrGetAnonymousUser();
+    const anonymousUser = this.createOrGetAnonymousUser();
     await this.identify(anonymousUser);
     return anonymousUser;
   }
@@ -257,7 +269,7 @@ export class FB {
         ),
       };
 
-      store.setFullData(data);
+      this.store.setFullData(data);
       logger.logDebug("bootstrapped with full data");
     }
 
@@ -274,7 +286,7 @@ export class FB {
       this._readyEventEmitted = true;
       eventHub.emit(
         "ready",
-        mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()),
+        mapFeatureFlagsToFeatureFlagBaseList(this.store.getFeatureFlags()),
       );
     }
   }
@@ -284,11 +296,11 @@ export class FB {
       const timestamp = forceFullFetch
         ? 0
         : Math.max(
-            ...Object.values(store.getFeatureFlags()).map((ff) => ff.timestamp),
+            ...Object.values(this.store.getFeatureFlags()).map((ff) => ff.timestamp),
             0,
           );
 
-      networkService.createConnection(timestamp, (message: IStreamResponse) => {
+      this.networkService.createConnection(timestamp, (message: IStreamResponse) => {
         if (message && message.userKeyId === this._option.user?.keyId) {
           const { featureFlags } = message;
 
@@ -322,10 +334,10 @@ export class FB {
               };
 
               if (message.eventType === StreamResponseEventType.full) {
-                store.setFullData(data);
+                this.store.setFullData(data);
                 logger.logDebug("synchonized with full data");
               } else {
-                store.updateBulkFromRemote(data);
+                this.store.updateBulkFromRemote(data);
                 logger.logDebug("synchonized with partial data");
               }
 
@@ -344,7 +356,7 @@ export class FB {
   }
 
   variation(key: string, defaultResult: FeatureFlagValue): FeatureFlagValue {
-    const variation = variationWithInsightBuffer(key, defaultResult);
+    const variation = this.variationWithInsightBuffer(key, defaultResult);
     return variation === undefined ? defaultResult : variation;
   }
 
@@ -352,7 +364,7 @@ export class FB {
    * deprecated, you should use variation method directly
    */
   boolVariation(key: string, defaultResult: boolean): boolean {
-    const variation = variationWithInsightBuffer(key, defaultResult);
+    const variation = this.variationWithInsightBuffer(key, defaultResult);
     return variation === undefined
       ? defaultResult
       : variation?.toLocaleLowerCase() === "true";
@@ -378,31 +390,44 @@ export class FB {
   }
 
   getAllFeatureFlags(): IFeatureFlagSet {
-    const flags = store.getFeatureFlags();
+    const flags = this.store.getFeatureFlags();
 
     return Object.values(flags).reduce((acc, curr) => {
       acc[curr.id] = parseVariation(curr.variationType, curr.variation);
       return acc;
     }, {});
   }
-}
 
-const variationWithInsightBuffer = (
-  key: string,
-  defaultResult: string | boolean,
-) => {
-  const variation = store.getVariation(key);
-  if (variation === undefined) {
-    eventHub.emit(featureFlagEvaluatedBufferTopic, {
-      id: key,
-      timestamp: Date.now(),
-      variationValue: `${defaultResult}`,
-    } as IFeatureFlagVariationBuffer);
+  variationWithInsightBuffer(key: string, defaultResult: string | boolean) {
+    const variation = this.store.getVariation(key);
+    if (variation === undefined) {
+      eventHub.emit(featureFlagEvaluatedBufferTopic, {
+        id: key,
+        timestamp: Date.now(),
+        variationValue: `${defaultResult}`,
+      } as IFeatureFlagVariationBuffer);
+    }
+
+    return variation;
   }
 
-  return variation;
-};
+  generateGuid(): string {
+    let guid = localStorage.getItem("fb-guid");
+    if (guid) {
+      return guid;
+    } else {
+      const id = uuid();
+      localStorage.setItem("fb-guid", id);
+      return id;
+    }
+  }
 
-const client = new FB();
-
-export default client;
+  createOrGetAnonymousUser(): IUser {
+    const sessionId = this.generateGuid();
+  
+    return {
+      name: sessionId,
+      keyId: sessionId,
+    };
+  }
+}

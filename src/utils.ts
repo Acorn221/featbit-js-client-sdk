@@ -1,17 +1,6 @@
 import { FeatureFlagValue, IOption, IUser, VariationDataType } from "./types";
 import { logger } from "./logger";
 
-// generate default user info
-export function generateGuid(): string {
-  let guid = localStorage.getItem("fb-guid");
-  if (guid) {
-    return guid;
-  } else {
-    const id = uuid();
-    localStorage.setItem("fb-guid", id);
-    return id;
-  }
-}
 
 export function serializeUser(user: IUser | undefined): string {
   if (!user) {
@@ -35,7 +24,7 @@ export function serializeUser(user: IUser | undefined): string {
  */
 export function isNumeric(str: string): boolean {
   // We only process strings, if not a string, return false
-  if (typeof str !== "string") return false; 
+  if (typeof str !== "string") return false;
 
   // Use type coercion to parse the totality of the string
   // @ts-expect-error `parseFloat` alone doesn't achieve this
