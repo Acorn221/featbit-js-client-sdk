@@ -1,2 +1,2 @@
-import fbClient from './featbit';
-export { fbClient };
+import { FB } from "./featbit";
+export { FB };

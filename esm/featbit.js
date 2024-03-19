@@ -56,19 +56,12 @@ var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
 };
 import { eventHub } from "./events";
 import { logger } from "./logger";
-import store from "./store";
-import { networkService } from "./network.service";
 import { InsightType, StreamResponseEventType, VariationDataType, } from "./types";
-import { generateGuid, parseVariation, serializeUser, validateOption, validateUser, } from "./utils";
+import { parseVariation, serializeUser, uuid, validateOption, validateUser, } from "./utils";
 import { Queue } from "./queue";
 import { featureFlagEvaluatedBufferTopic, featureFlagEvaluatedTopic, insightsFlushTopic, insightsTopic, websocketReconnectTopic, } from "./constants";
-function createOrGetAnonymousUser() {
-    var sessionId = generateGuid();
-    return {
-        name: sessionId,
-        keyId: sessionId,
-    };
-}
+import { Store } from "./store";
+import { NetworkService } from "./network.service";
 function mapFeatureFlagsToFeatureFlagBaseList(featureFlags) {
     return Object.keys(featureFlags).map(function (cur) {
         var _a = featureFlags[cur], id = _a.id, variation = _a.variation;
@@ -81,7 +74,7 @@ function mapFeatureFlagsToFeatureFlagBaseList(featureFlags) {
     });
 }
 var FB = /** @class */ (function () {
-    function FB() {
+    function FB(storage) {
         var _this = this;
         this._readyEventEmitted = false;
         this._insightsQueue = new Queue(1, insightsFlushTopic);
@@ -92,9 +85,12 @@ var FB = /** @class */ (function () {
             enableDataSync: true,
             appType: "javascript",
         };
-        this._readyPromise = new Promise(function (resolve, reject) {
+        this.storage = storage;
+        this.store = new Store(this);
+        this.networkService = new NetworkService(this);
+        this._readyPromise = new Promise(function (resolve) {
             _this.on("ready", function () {
-                var featureFlags = store.getFeatureFlags();
+                var featureFlags = _this.store.getFeatureFlags();
                 resolve(mapFeatureFlagsToFeatureFlagBaseList(featureFlags));
                 if (_this._option.enableDataSync) {
                     var buffered = _this._featureFlagEvaluationBuffer
@@ -120,7 +116,7 @@ var FB = /** @class */ (function () {
                             variation: variation || { id: -1, value: f.variationValue },
                         };
                     });
-                    networkService.sendInsights(buffered.filter(function (x) { return !!x; }));
+                    _this.networkService.sendInsights(buffered.filter(function (x) { return !!x; }));
                 }
             });
         });
@@ -137,7 +133,7 @@ var FB = /** @class */ (function () {
                         _a.sent();
                         if (!this._readyEventEmitted) {
                             this._readyEventEmitted = true;
-                            eventHub.emit("ready", mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()));
+                            eventHub.emit("ready", mapFeatureFlagsToFeatureFlagBaseList(this.store.getFeatureFlags()));
                         }
                         return [3 /*break*/, 3];
                     case 2:
@@ -154,7 +150,7 @@ var FB = /** @class */ (function () {
         // track feature flag usage data
         eventHub.subscribe(insightsFlushTopic, function () {
             if (_this._option.enableDataSync) {
-                networkService.sendInsights(_this._insightsQueue.flush());
+                _this.networkService.sendInsights(_this._insightsQueue.flush());
             }
         });
         eventHub.subscribe(featureFlagEvaluatedTopic, function (data) {
@@ -164,6 +160,15 @@ var FB = /** @class */ (function () {
             _this._insightsQueue.add(data);
         });
     }
+    FB.prototype.get = function (key) {
+        return this.storage.getItem("fb_".concat(key));
+    };
+    FB.prototype.set = function (key, value) {
+        return this.storage.setItem("fb_".concat(key), value);
+    };
+    FB.prototype.removeItem = function (key) {
+        return this.storage.removeItem("fb_".concat(key));
+    };
     FB.prototype.on = function (name, cb) {
         eventHub.subscribe(name, cb);
     };
@@ -184,9 +189,9 @@ var FB = /** @class */ (function () {
                         }
                         this._option = __assign(__assign(__assign({}, this._option), option), { api: (_a = (option.api || this._option.api)) === null || _a === void 0 ? void 0 : _a.replace(/\/$/, "") });
                         if (this._option.enableDataSync) {
-                            networkService.init(this._option.api, this._option.secret, this._option.appType);
+                            this.networkService.init(this._option.api, this._option.secret, this._option.appType);
                         }
-                        return [4 /*yield*/, this.identify(option.user || createOrGetAnonymousUser())];
+                        return [4 /*yield*/, this.identify(option.user || this.createOrGetAnonymousUser())];
                     case 1:
                         _b.sent();
                         return [2 /*return*/];
@@ -196,28 +201,33 @@ var FB = /** @class */ (function () {
     };
     FB.prototype.identify = function (user) {
         return __awaiter(this, void 0, void 0, function () {
-            var validateUserResult, isUserChanged;
-            var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var validateUserResult, isUserChanged, _a;
+            var _b;
+            return __generator(this, function (_c) {
+                switch (_c.label) {
                     case 0:
                         validateUserResult = validateUser(user);
                         if (validateUserResult !== null) {
                             logger.log(validateUserResult);
                             return [2 /*return*/];
                         }
-                        user.customizedProperties = (_a = user.customizedProperties) === null || _a === void 0 ? void 0 : _a.map(function (p) { return ({
+                        user.customizedProperties = (_b = user.customizedProperties) === null || _b === void 0 ? void 0 : _b.map(function (p) { return ({
                             name: p.name,
                             value: "".concat(p.value),
                         }); });
-                        isUserChanged = serializeUser(user) !== localStorage.getItem("current_user");
-                        this._option.user = Object.assign({}, user);
-                        localStorage.setItem("current_user", serializeUser(this._option.user));
-                        store.userId = this._option.user.keyId;
-                        networkService.identify(this._option.user, isUserChanged);
-                        return [4 /*yield*/, this.bootstrap(this._option.bootstrap, isUserChanged)];
+                        _a = serializeUser(user);
+                        return [4 /*yield*/, this.get("current_user")];
                     case 1:
-                        _b.sent();
+                        isUserChanged = _a !== (_c.sent());
+                        this._option.user = Object.assign({}, user);
+                        return [4 /*yield*/, this.set("current_user", serializeUser(this._option.user))];
+                    case 2:
+                        _c.sent();
+                        this.store.userId = this._option.user.keyId;
+                        this.networkService.identify(this._option.user, isUserChanged);
+                        return [4 /*yield*/, this.bootstrap(this._option.bootstrap, isUserChanged)];
+                    case 3:
+                        _c.sent();
                         return [2 /*return*/];
                 }
             });
@@ -229,7 +239,7 @@ var FB = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        anonymousUser = createOrGetAnonymousUser();
+                        anonymousUser = this.createOrGetAnonymousUser();
                         return [4 /*yield*/, this.identify(anonymousUser)];
                     case 1:
                         _a.sent();
@@ -268,7 +278,7 @@ var FB = /** @class */ (function () {
                                     return res;
                                 }, {}),
                             };
-                            store.setFullData(data);
+                            this.store.setFullData(data);
                             logger.logDebug("bootstrapped with full data");
                         }
                         if (!this._option.enableDataSync) return [3 /*break*/, 4];
@@ -286,7 +296,7 @@ var FB = /** @class */ (function () {
                     case 4:
                         if (!this._readyEventEmitted) {
                             this._readyEventEmitted = true;
-                            eventHub.emit("ready", mapFeatureFlagsToFeatureFlagBaseList(store.getFeatureFlags()));
+                            eventHub.emit("ready", mapFeatureFlagsToFeatureFlagBaseList(this.store.getFeatureFlags()));
                         }
                         return [2 /*return*/];
                 }
@@ -300,8 +310,8 @@ var FB = /** @class */ (function () {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         var timestamp = forceFullFetch
                             ? 0
-                            : Math.max.apply(Math, __spreadArray(__spreadArray([], Object.values(store.getFeatureFlags()).map(function (ff) { return ff.timestamp; }), false), [0], false));
-                        networkService.createConnection(timestamp, function (message) {
+                            : Math.max.apply(Math, __spreadArray(__spreadArray([], Object.values(_this.store.getFeatureFlags()).map(function (ff) { return ff.timestamp; }), false), [0], false));
+                        _this.networkService.createConnection(timestamp, function (message) {
                             var _a;
                             if (message && message.userKeyId === ((_a = _this._option.user) === null || _a === void 0 ? void 0 : _a.keyId)) {
                                 var featureFlags = message.featureFlags;
@@ -323,11 +333,11 @@ var FB = /** @class */ (function () {
                                             }, {}),
                                         };
                                         if (message.eventType === StreamResponseEventType.full) {
-                                            store.setFullData(data);
+                                            _this.store.setFullData(data);
                                             logger.logDebug("synchonized with full data");
                                         }
                                         else {
-                                            store.updateBulkFromRemote(data);
+                                            _this.store.updateBulkFromRemote(data);
                                             logger.logDebug("synchonized with partial data");
                                         }
                                         break;
@@ -343,14 +353,14 @@ var FB = /** @class */ (function () {
         });
     };
     FB.prototype.variation = function (key, defaultResult) {
-        var variation = variationWithInsightBuffer(key, defaultResult);
+        var variation = this.variationWithInsightBuffer(key, defaultResult);
         return variation === undefined ? defaultResult : variation;
     };
     /**
      * deprecated, you should use variation method directly
      */
     FB.prototype.boolVariation = function (key, defaultResult) {
-        var variation = variationWithInsightBuffer(key, defaultResult);
+        var variation = this.variationWithInsightBuffer(key, defaultResult);
         return variation === undefined
             ? defaultResult
             : (variation === null || variation === void 0 ? void 0 : variation.toLocaleLowerCase()) === "true";
@@ -368,26 +378,42 @@ var FB = /** @class */ (function () {
         this.variation(key, variation);
     };
     FB.prototype.getAllFeatureFlags = function () {
-        var flags = store.getFeatureFlags();
+        var flags = this.store.getFeatureFlags();
         return Object.values(flags).reduce(function (acc, curr) {
             acc[curr.id] = parseVariation(curr.variationType, curr.variation);
             return acc;
         }, {});
     };
+    FB.prototype.variationWithInsightBuffer = function (key, defaultResult) {
+        var variation = this.store.getVariation(key);
+        if (variation === undefined) {
+            eventHub.emit(featureFlagEvaluatedBufferTopic, {
+                id: key,
+                timestamp: Date.now(),
+                variationValue: "".concat(defaultResult),
+            });
+        }
+        return variation;
+    };
+    FB.prototype.generateGuid = function () {
+        var guid = localStorage.getItem("fb-guid");
+        if (guid) {
+            return guid;
+        }
+        else {
+            var id = uuid();
+            localStorage.setItem("fb-guid", id);
+            return id;
+        }
+    };
+    FB.prototype.createOrGetAnonymousUser = function () {
+        var sessionId = this.generateGuid();
+        return {
+            name: sessionId,
+            keyId: sessionId,
+        };
+    };
     return FB;
 }());
 export { FB };
-var variationWithInsightBuffer = function (key, defaultResult) {
-    var variation = store.getVariation(key);
-    if (variation === undefined) {
-        eventHub.emit(featureFlagEvaluatedBufferTopic, {
-            id: key,
-            timestamp: Date.now(),
-            variationValue: "".concat(defaultResult),
-        });
-    }
-    return variation;
-};
-var client = new FB();
-export default client;
 //# sourceMappingURL=featbit.js.map

@@ -53,7 +53,7 @@ import { generateConnectionToken } from "./utils";
 import throttleUtil from "./throttleutil";
 var socketConnectionIntervals = [250, 500, 1000, 2000, 4000, 8000];
 var NetworkService = /** @class */ (function () {
-    function NetworkService() {
+    function NetworkService(fb) {
         var _this = this;
         this.retryCounter = 0;
         this.sendInsights = throttleUtil.throttleAsync(function (data) { return __awaiter(_this, void 0, void 0, function () {
@@ -110,6 +110,7 @@ var NetworkService = /** @class */ (function () {
                 }
             });
         }); });
+        this.fb = fb;
     }
     NetworkService.prototype.init = function (api, secret, appType) {
         this.api = api;
@@ -239,63 +240,83 @@ var NetworkService = /** @class */ (function () {
     };
     NetworkService.prototype.getActiveExperimentMetricSettings = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var exptMetricSettingLocalStorageKey, result, error_1;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var exptMetricSettingLocalStorageKey, result, error_1, _a, _b, _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
                         exptMetricSettingLocalStorageKey = "fb_expt_metric";
-                        _a.label = 1;
+                        _d.label = 1;
                     case 1:
-                        _a.trys.push([1, 3, , 4]);
+                        _d.trys.push([1, 4, , 9]);
                         return [4 /*yield*/, get("".concat(this.api, "/api/public/sdk/experiments"), {
                                 Authorization: this.secret,
                             })];
                     case 2:
-                        result = _a.sent();
-                        localStorage.setItem(exptMetricSettingLocalStorageKey, JSON.stringify(result.data));
-                        return [2 /*return*/, result.data];
+                        result = _d.sent();
+                        return [4 /*yield*/, this.fb.set(exptMetricSettingLocalStorageKey, JSON.stringify(result.data))];
                     case 3:
-                        error_1 = _a.sent();
+                        _d.sent();
+                        return [2 /*return*/, result.data];
+                    case 4:
+                        error_1 = _d.sent();
                         logger.log(error_1);
-                        return [2 /*return*/, !!localStorage.getItem(exptMetricSettingLocalStorageKey)
-                                ? JSON.parse(localStorage.getItem(exptMetricSettingLocalStorageKey))
-                                : []];
-                    case 4: return [2 /*return*/];
+                        return [4 /*yield*/, this.fb.get(exptMetricSettingLocalStorageKey)];
+                    case 5:
+                        if (!!!(_d.sent())) return [3 /*break*/, 7];
+                        _c = (_b = JSON).parse;
+                        return [4 /*yield*/, this.fb.get(exptMetricSettingLocalStorageKey)];
+                    case 6:
+                        _a = _c.apply(_b, [(_d.sent())]);
+                        return [3 /*break*/, 8];
+                    case 7:
+                        _a = [];
+                        _d.label = 8;
+                    case 8: return [2 /*return*/, _a];
+                    case 9: return [2 /*return*/];
                 }
             });
         });
     };
     NetworkService.prototype.getZeroCodeSettings = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var zeroCodeSettingLocalStorageKey, result, error_2;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
+            var zeroCodeSettingLocalStorageKey, result, error_2, _a, _b, _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
                         zeroCodeSettingLocalStorageKey = "fb_zcs";
-                        _a.label = 1;
+                        _d.label = 1;
                     case 1:
-                        _a.trys.push([1, 3, , 4]);
+                        _d.trys.push([1, 4, , 8]);
                         return [4 /*yield*/, get("".concat(this.api, "/api/public/sdk/zero-code"), {
                                 Authorization: this.secret,
                             })];
                     case 2:
-                        result = _a.sent();
-                        localStorage.setItem(zeroCodeSettingLocalStorageKey, JSON.stringify(result.data));
-                        return [2 /*return*/, result.data];
+                        result = _d.sent();
+                        return [4 /*yield*/, this.fb.set(zeroCodeSettingLocalStorageKey, JSON.stringify(result.data))];
                     case 3:
-                        error_2 = _a.sent();
+                        _d.sent();
+                        return [2 /*return*/, result.data];
+                    case 4:
+                        error_2 = _d.sent();
                         logger.log(error_2);
-                        return [2 /*return*/, !!localStorage.getItem(zeroCodeSettingLocalStorageKey)
-                                ? JSON.parse(localStorage.getItem(zeroCodeSettingLocalStorageKey))
-                                : []];
-                    case 4: return [2 /*return*/];
+                        if (!!!(this.fb.get(zeroCodeSettingLocalStorageKey))) return [3 /*break*/, 6];
+                        _c = (_b = JSON).parse;
+                        return [4 /*yield*/, this.fb.get(zeroCodeSettingLocalStorageKey)];
+                    case 5:
+                        _a = _c.apply(_b, [(_d.sent())]);
+                        return [3 /*break*/, 7];
+                    case 6:
+                        _a = [];
+                        _d.label = 7;
+                    case 7: return [2 /*return*/, _a];
+                    case 8: return [2 /*return*/];
                 }
             });
         });
     };
     return NetworkService;
 }());
-export var networkService = new NetworkService();
+export { NetworkService };
 export function post() {
     return __awaiter(this, arguments, void 0, function (url, data, headers) {
         var response, err_2;

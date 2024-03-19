@@ -1,9 +1,11 @@
+import { FB } from "./featbit";
 import { FeatureFlagValue, IDataStore, IFeatureFlag } from "./types";
-declare class Store {
+export declare class Store {
     private _isDevMode;
     private _userId;
+    private fb;
     private _store;
-    constructor();
+    constructor(fb: FB);
     set userId(id: string);
     set isDevMode(devMode: boolean);
     get isDevMode(): boolean;
@@ -13,11 +15,9 @@ declare class Store {
     getFeatureFlags(): {
         [key: string]: IFeatureFlag;
     };
-    updateStorageBulk(data: IDataStore, storageKey: string, onlyInsertNewElement: boolean): void;
+    updateStorageBulk(data: IDataStore, storageKey: string, onlyInsertNewElement: boolean): Promise<void>;
     updateBulkFromRemote(data: IDataStore): void;
     private _emitUpdateEvents;
     private _dumpToStorage;
     private _loadFromStorage;
 }
-declare const _default: Store;
-export default _default;

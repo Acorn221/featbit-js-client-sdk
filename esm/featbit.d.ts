@@ -1,11 +1,18 @@
 import { FeatureFlagValue, ICustomEvent, IFeatureFlag, IFeatureFlagBase, IFeatureFlagSet, IOption, IUser } from "./types";
+import { Storage } from "../node_modules/@plasmohq/storage/dist/index";
 export declare class FB {
     private _readyEventEmitted;
     private _readyPromise;
+    private store;
+    private networkService;
     private _insightsQueue;
     private _featureFlagEvaluationBuffer;
     private _option;
-    constructor();
+    storage: Storage;
+    constructor(storage: Storage);
+    get(key: string): Promise<string | undefined>;
+    set(key: string, value: string): Promise<void>;
+    removeItem(key: string): Promise<void>;
     on(name: string, cb: Function): void;
     waitUntilReady(): Promise<IFeatureFlagBase[]>;
     init(option: IOption): Promise<void>;
@@ -28,6 +35,7 @@ export declare class FB {
     sendCustomEvent(data: ICustomEvent[]): void;
     sendFeatureFlagInsight(key: string, variation: string): void;
     getAllFeatureFlags(): IFeatureFlagSet;
+    variationWithInsightBuffer(key: string, defaultResult: string | boolean): any;
+    generateGuid(): string;
+    createOrGetAnonymousUser(): IUser;
 }
-declare const client: FB;
-export default client;

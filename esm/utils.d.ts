@@ -1,5 +1,4 @@
 import { FeatureFlagValue, IOption, IUser, VariationDataType } from "./types";
-export declare function generateGuid(): string;
 export declare function serializeUser(user: IUser | undefined): string;
 /**
  * Checks if a string is numeric

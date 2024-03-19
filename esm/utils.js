@@ -1,17 +1,5 @@
 import { VariationDataType } from "./types";
 import { logger } from "./logger";
-// generate default user info
-export function generateGuid() {
-    var guid = localStorage.getItem("fb-guid");
-    if (guid) {
-        return guid;
-    }
-    else {
-        var id = uuid();
-        localStorage.setItem("fb-guid", id);
-        return id;
-    }
-}
 export function serializeUser(user) {
     var _a;
     if (!user) {
