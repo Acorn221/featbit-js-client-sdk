@@ -1,5 +1,5 @@
 // ! Debug mode is set here, it should probably be moved
-const debug = true;
+const debug = false;
 
 export const logger = {
   logDebug(...args) {
