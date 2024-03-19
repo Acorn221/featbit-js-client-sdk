@@ -185,23 +185,30 @@ var FB = /** @class */ (function () {
     };
     FB.prototype.init = function (option) {
         return __awaiter(this, void 0, void 0, function () {
-            var validateOptionResult;
-            var _a;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var validateOptionResult, _a, _b;
+            var _c;
+            return __generator(this, function (_d) {
+                switch (_d.label) {
                     case 0:
                         validateOptionResult = validateOption(__assign(__assign({}, this._option), option));
                         if (validateOptionResult !== null) {
                             logger.log(validateOptionResult);
                             return [2 /*return*/];
                         }
-                        this._option = __assign(__assign(__assign({}, this._option), option), { api: (_a = (option.api || this._option.api)) === null || _a === void 0 ? void 0 : _a.replace(/\/$/, "") });
+                        this._option = __assign(__assign(__assign({}, this._option), option), { api: (_c = (option.api || this._option.api)) === null || _c === void 0 ? void 0 : _c.replace(/\/$/, "") });
                         if (this._option.enableDataSync) {
                             this.networkService.init(this._option.api, this._option.secret, this._option.appType);
                         }
-                        return [4 /*yield*/, this.identify(option.user || this.createOrGetAnonymousUser())];
+                        _a = this.identify;
+                        _b = option.user;
+                        if (_b) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.createOrGetAnonymousUser()];
                     case 1:
-                        _b.sent();
+                        _b = (_d.sent());
+                        _d.label = 2;
+                    case 2: return [4 /*yield*/, _a.apply(this, [_b])];
+                    case 3:
+                        _d.sent();
                         return [2 /*return*/];
                 }
             });
@@ -246,10 +253,11 @@ var FB = /** @class */ (function () {
             var anonymousUser;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0:
-                        anonymousUser = this.createOrGetAnonymousUser();
-                        return [4 /*yield*/, this.identify(anonymousUser)];
+                    case 0: return [4 /*yield*/, this.createOrGetAnonymousUser()];
                     case 1:
+                        anonymousUser = _a.sent();
+                        return [4 /*yield*/, this.identify(anonymousUser)];
+                    case 2:
                         _a.sent();
                         return [2 /*return*/, anonymousUser];
                 }
@@ -404,22 +412,40 @@ var FB = /** @class */ (function () {
         return variation;
     };
     FB.prototype.generateGuid = function () {
-        var guid = localStorage.getItem("fb-guid");
-        if (guid) {
-            return guid;
-        }
-        else {
-            var id = uuid();
-            localStorage.setItem("fb-guid", id);
-            return id;
-        }
+        return __awaiter(this, void 0, void 0, function () {
+            var guid, id;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.get("fb-guid")];
+                    case 1:
+                        guid = _a.sent();
+                        if (!guid) return [3 /*break*/, 2];
+                        return [2 /*return*/, guid];
+                    case 2:
+                        id = uuid();
+                        return [4 /*yield*/, this.set("fb-guid", id)];
+                    case 3:
+                        _a.sent();
+                        return [2 /*return*/, id];
+                }
+            });
+        });
     };
     FB.prototype.createOrGetAnonymousUser = function () {
-        var sessionId = this.generateGuid();
-        return {
-            name: sessionId,
-            keyId: sessionId,
-        };
+        return __awaiter(this, void 0, void 0, function () {
+            var sessionId;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this.generateGuid()];
+                    case 1:
+                        sessionId = _a.sent();
+                        return [2 /*return*/, {
+                                name: sessionId,
+                                keyId: sessionId,
+                            }];
+                }
+            });
+        });
     };
     return FB;
 }());

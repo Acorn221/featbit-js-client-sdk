@@ -36,6 +36,6 @@ export declare class FB {
     sendFeatureFlagInsight(key: string, variation: string): void;
     getAllFeatureFlags(): IFeatureFlagSet;
     variationWithInsightBuffer(key: string, defaultResult: string | boolean): any;
-    generateGuid(): string;
-    createOrGetAnonymousUser(): IUser;
+    generateGuid(): Promise<string>;
+    createOrGetAnonymousUser(): Promise<IUser>;
 }

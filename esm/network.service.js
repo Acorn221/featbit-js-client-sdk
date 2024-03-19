@@ -286,7 +286,7 @@ var NetworkService = /** @class */ (function () {
                         zeroCodeSettingLocalStorageKey = "fb_zcs";
                         _d.label = 1;
                     case 1:
-                        _d.trys.push([1, 4, , 8]);
+                        _d.trys.push([1, 4, , 9]);
                         return [4 /*yield*/, get("".concat(this.api, "/api/public/sdk/zero-code"), {
                                 Authorization: this.secret,
                             })];
@@ -299,17 +299,19 @@ var NetworkService = /** @class */ (function () {
                     case 4:
                         error_2 = _d.sent();
                         logger.log(error_2);
-                        if (!!!(this.fb.get(zeroCodeSettingLocalStorageKey))) return [3 /*break*/, 6];
-                        _c = (_b = JSON).parse;
                         return [4 /*yield*/, this.fb.get(zeroCodeSettingLocalStorageKey)];
                     case 5:
-                        _a = _c.apply(_b, [(_d.sent())]);
-                        return [3 /*break*/, 7];
+                        if (!!!(_d.sent())) return [3 /*break*/, 7];
+                        _c = (_b = JSON).parse;
+                        return [4 /*yield*/, this.fb.get(zeroCodeSettingLocalStorageKey)];
                     case 6:
+                        _a = _c.apply(_b, [(_d.sent())]);
+                        return [3 /*break*/, 8];
+                    case 7:
                         _a = [];
-                        _d.label = 7;
-                    case 7: return [2 /*return*/, _a];
-                    case 8: return [2 /*return*/];
+                        _d.label = 8;
+                    case 8: return [2 /*return*/, _a];
+                    case 9: return [2 /*return*/];
                 }
             });
         });

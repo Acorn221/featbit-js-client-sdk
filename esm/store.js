@@ -91,7 +91,9 @@ var Store = /** @class */ (function () {
     Object.defineProperty(Store.prototype, "userId", {
         set: function (id) {
             this._userId = id;
-            this._loadFromStorage();
+            this._loadFromStorage().catch(function (err) {
+                logger.logDebug("error while loading from storage: " + err);
+            });
         },
         enumerable: false,
         configurable: true
@@ -102,7 +104,9 @@ var Store = /** @class */ (function () {
         },
         set: function (devMode) {
             this._isDevMode = devMode;
-            this._loadFromStorage();
+            this._loadFromStorage().catch(function (err) {
+                logger.logDebug("error while loading from storage: " + err);
+            });
         },
         enumerable: false,
         configurable: true
