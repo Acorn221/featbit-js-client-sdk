@@ -1,5 +1,5 @@
 // ! Debug mode is set here, it should probably be moved
-var debug = true;
+var debug = false;
 export var logger = {
     logDebug: function () {
         var args = [];
