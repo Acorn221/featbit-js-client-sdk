@@ -209,6 +209,9 @@ var FB = /** @class */ (function () {
                     case 2: return [4 /*yield*/, _a.apply(this, [_b])];
                     case 3:
                         _d.sent();
+                        return [4 /*yield*/, this._readyPromise];
+                    case 4:
+                        _d.sent();
                         return [2 /*return*/];
                 }
             });
