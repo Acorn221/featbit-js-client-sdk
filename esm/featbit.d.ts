@@ -10,8 +10,8 @@ export declare class FB {
     private _option;
     storage: Storage;
     constructor(storage: Storage);
-    get(key: string): Promise<string | undefined>;
-    set(key: string, value: string): Promise<void>;
+    get(key: string): Promise<string>;
+    set(key: string, value: string): Promise<null>;
     removeItem(key: string): Promise<void>;
     on(name: string, cb: Function): void;
     waitUntilReady(): Promise<IFeatureFlagBase[]>;

@@ -161,10 +161,18 @@ var FB = /** @class */ (function () {
         });
     }
     FB.prototype.get = function (key) {
-        return this.storage.getItem("fb_".concat(key));
+        return __awaiter(this, void 0, void 0, function () {
+            var _a;
+            return __generator(this, function (_b) {
+                switch (_b.label) {
+                    case 0: return [4 /*yield*/, this.storage.get("fb_".concat(key))];
+                    case 1: return [2 /*return*/, (_a = (_b.sent())) !== null && _a !== void 0 ? _a : ""];
+                }
+            });
+        });
     };
     FB.prototype.set = function (key, value) {
-        return this.storage.setItem("fb_".concat(key), value);
+        return this.storage.set("fb_".concat(key), value);
     };
     FB.prototype.removeItem = function (key) {
         return this.storage.removeItem("fb_".concat(key));
