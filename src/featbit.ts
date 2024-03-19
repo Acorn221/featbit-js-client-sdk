@@ -156,8 +156,8 @@ export class FB {
     });
   }
 
-  get(key: string) {
-    return this.storage.getItem(`fb_${key}`);
+  async get(key: string) {
+    return (await this.storage.getItem(`fb_${key}`)) ?? "";
   }
 
   set(key: string, value: string) {
