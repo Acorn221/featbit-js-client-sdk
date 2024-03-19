@@ -49,30 +49,38 @@ var Store = /** @class */ (function () {
             featureFlags: {},
         };
         this.fb = fb;
-        eventHub.subscribe("devmode_ff_".concat(FeatureFlagUpdateOperation.update), function (data) {
-            var updatedFfs = Object.keys(data)
-                .map(function (key) {
-                var changes = data[key];
-                var ff = _this._store.featureFlags[key];
-                var updatedFf = Object.assign({}, ff, {
-                    variation: changes["newValue"],
-                    timestamp: Date.now(),
-                });
-                return updatedFf;
-            })
-                .reduce(function (res, curr) {
-                res.featureFlags[curr.id] = Object.assign({}, curr, {
-                    timestamp: Date.now(),
-                });
-                return res;
-            }, { featureFlags: {} });
-            _this.updateStorageBulk(updatedFfs, "".concat(DataStoreStorageKey, "_dev_").concat(_this._userId), false).catch(function (err) {
-                logger.logDebug("error while updating dev data store: " + err);
+        eventHub.subscribe("devmode_ff_".concat(FeatureFlagUpdateOperation.update), function (data) { return __awaiter(_this, void 0, void 0, function () {
+            var updatedFfs;
+            var _this = this;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        updatedFfs = Object.keys(data)
+                            .map(function (key) {
+                            var changes = data[key];
+                            var ff = _this._store.featureFlags[key];
+                            var updatedFf = Object.assign({}, ff, {
+                                variation: changes["newValue"],
+                                timestamp: Date.now(),
+                            });
+                            return updatedFf;
+                        })
+                            .reduce(function (res, curr) {
+                            res.featureFlags[curr.id] = Object.assign({}, curr, {
+                                timestamp: Date.now(),
+                            });
+                            return res;
+                        }, { featureFlags: {} });
+                        return [4 /*yield*/, this.updateStorageBulk(updatedFfs, "".concat(DataStoreStorageKey, "_dev_").concat(this._userId), false)];
+                    case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this._loadFromStorage()];
+                    case 2:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
             });
-            _this._loadFromStorage().catch(function (err) {
-                logger.logDebug("error while loading from storage: " + err);
-            });
-        });
+        }); });
         eventHub.subscribe("devmode_ff_".concat(FeatureFlagUpdateOperation.createDevData), function () { return __awaiter(_this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -130,15 +138,25 @@ var Store = /** @class */ (function () {
         return parseVariation(variationType, variation);
     };
     Store.prototype.setFullData = function (data) {
-        if (!this._isDevMode) {
-            this._store = {
-                featureFlags: {},
-            };
-            this._dumpToStorage(this._store).catch(function (err) {
-                logger.logDebug("error while dumping to storage: " + err);
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!!this._isDevMode) return [3 /*break*/, 2];
+                        this._store = {
+                            featureFlags: {},
+                        };
+                        return [4 /*yield*/, this._dumpToStorage(this._store)];
+                    case 1:
+                        _a.sent();
+                        _a.label = 2;
+                    case 2: return [4 /*yield*/, this.updateBulkFromRemote(data)];
+                    case 3:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
             });
-        }
-        this.updateBulkFromRemote(data);
+        });
     };
     Store.prototype.getFeatureFlags = function () {
         return this._store.featureFlags;
@@ -185,15 +203,26 @@ var Store = /** @class */ (function () {
         });
     };
     Store.prototype.updateBulkFromRemote = function (data) {
-        var storageKey = "".concat(DataStoreStorageKey, "_").concat(this._userId);
-        var devStorageKey = "".concat(DataStoreStorageKey, "_dev_").concat(this._userId);
-        this.updateStorageBulk(data, storageKey, false).catch(function (e) {
-            logger.logDebug("error while updating data store: " + e);
+        return __awaiter(this, void 0, void 0, function () {
+            var storageKey, devStorageKey;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        storageKey = "".concat(DataStoreStorageKey, "_").concat(this._userId);
+                        devStorageKey = "".concat(DataStoreStorageKey, "_dev_").concat(this._userId);
+                        return [4 /*yield*/, this.updateStorageBulk(data, storageKey, false)];
+                    case 1:
+                        _a.sent();
+                        return [4 /*yield*/, this.updateStorageBulk(data, devStorageKey, true)];
+                    case 2:
+                        _a.sent();
+                        return [4 /*yield*/, this._loadFromStorage()];
+                    case 3:
+                        _a.sent();
+                        return [2 /*return*/];
+                }
+            });
         });
-        this.updateStorageBulk(data, devStorageKey, true).catch(function (e) {
-            logger.logDebug("error while updating dev data store: " + e);
-        });
-        this._loadFromStorage();
     };
     Store.prototype._emitUpdateEvents = function (updatedFeatureFlags) {
         if (updatedFeatureFlags.length > 0) {
@@ -235,7 +264,7 @@ var Store = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 8, , 9]);
+                        _a.trys.push([0, 10, , 11]);
                         storageKey = this._isDevMode
                             ? "".concat(DataStoreStorageKey, "_dev_").concat(this._userId)
                             : "".concat(DataStoreStorageKey, "_").concat(this._userId);
@@ -298,17 +327,17 @@ var Store = /** @class */ (function () {
                                 featureFlags: {},
                             };
                         }
-                        if (shouldDumpToStorage) {
-                            this._dumpToStorage().catch(function (err) {
-                                logger.logDebug("error while dumping to storage: " + err);
-                            });
-                        }
-                        return [3 /*break*/, 9];
+                        if (!shouldDumpToStorage) return [3 /*break*/, 9];
+                        return [4 /*yield*/, this._dumpToStorage()];
                     case 8:
+                        _a.sent();
+                        _a.label = 9;
+                    case 9: return [3 /*break*/, 11];
+                    case 10:
                         err_2 = _a.sent();
                         logger.logDebug("error while loading local data store: " + err_2);
-                        return [3 /*break*/, 9];
-                    case 9: return [2 /*return*/];
+                        return [3 /*break*/, 11];
+                    case 11: return [2 /*return*/];
                 }
             });
         });

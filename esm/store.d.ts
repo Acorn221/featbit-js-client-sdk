@@ -11,12 +11,12 @@ export declare class Store {
     get isDevMode(): boolean;
     getFeatureFlag(key: string): IFeatureFlag;
     getVariation(key: string): FeatureFlagValue;
-    setFullData(data: IDataStore): void;
+    setFullData(data: IDataStore): Promise<void>;
     getFeatureFlags(): {
         [key: string]: IFeatureFlag;
     };
     updateStorageBulk(data: IDataStore, storageKey: string, onlyInsertNewElement: boolean): Promise<void>;
-    updateBulkFromRemote(data: IDataStore): void;
+    updateBulkFromRemote(data: IDataStore): Promise<void>;
     private _emitUpdateEvents;
     private _dumpToStorage;
     private _loadFromStorage;

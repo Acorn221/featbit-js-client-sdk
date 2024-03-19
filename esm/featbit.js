@@ -419,7 +419,7 @@ var FB = /** @class */ (function () {
                     case 0: return [4 /*yield*/, this.get("fb-guid")];
                     case 1:
                         guid = _a.sent();
-                        if (!guid) return [3 /*break*/, 2];
+                        if (!(guid && guid.length > 0)) return [3 /*break*/, 2];
                         return [2 /*return*/, guid];
                     case 2:
                         id = uuid();
