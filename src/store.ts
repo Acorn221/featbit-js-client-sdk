@@ -29,7 +29,7 @@ export class Store {
     this.fb = fb;
     eventHub.subscribe(
       `devmode_ff_${FeatureFlagUpdateOperation.update}`,
-      (data) => {
+      async (data) => {
         const updatedFfs = Object.keys(data)
           .map((key) => {
             const changes = data[key];
@@ -50,16 +50,12 @@ export class Store {
             { featureFlags: {} },
           );
 
-        this.updateStorageBulk(
+        await this.updateStorageBulk(
           updatedFfs,
           `${DataStoreStorageKey}_dev_${this._userId}`,
           false,
-        ).catch((err) => {
-          logger.logDebug("error while updating dev data store: " + err);
-        });
-        this._loadFromStorage().catch((err) => {
-          logger.logDebug("error while loading from storage: " + err);
-        });
+        )
+        await this._loadFromStorage();
       },
     );
 
@@ -120,18 +116,15 @@ export class Store {
     return parseVariation(variationType, variation);
   }
 
-  setFullData(data: IDataStore) {
+  async setFullData(data: IDataStore) {
     if (!this._isDevMode) {
       this._store = {
         featureFlags: {} as { [key: string]: IFeatureFlag },
       };
 
-      this._dumpToStorage(this._store).catch((err) => {
-        logger.logDebug("error while dumping to storage: " + err);
-      });
+      await this._dumpToStorage(this._store)
     }
-
-    this.updateBulkFromRemote(data);
+    await this.updateBulkFromRemote(data);
   }
 
   getFeatureFlags(): { [key: string]: IFeatureFlag } {
@@ -179,19 +172,15 @@ export class Store {
     }
   }
 
-  updateBulkFromRemote(data: IDataStore) {
+  async updateBulkFromRemote(data: IDataStore) {
     const storageKey = `${DataStoreStorageKey}_${this._userId}`;
     const devStorageKey = `${DataStoreStorageKey}_dev_${this._userId}`;
 
-    this.updateStorageBulk(data, storageKey, false).catch(e => {
-      logger.logDebug("error while updating data store: " + e);
-    });
+    await this.updateStorageBulk(data, storageKey, false)
 
-    this.updateStorageBulk(data, devStorageKey, true).catch(e => {
-      logger.logDebug("error while updating dev data store: " + e);
-    });
+    await this.updateStorageBulk(data, devStorageKey, true)
 
-    this._loadFromStorage();
+    await this._loadFromStorage();
   }
 
   private _emitUpdateEvents(updatedFeatureFlags: any[]): void {
@@ -229,7 +218,7 @@ export class Store {
       let shouldDumpToStorage = false;
       if (this._isDevMode) {
         try {
-          const devData = JSON.parse(dataStoreStr!);
+          const devData = JSON.parse(dataStoreStr);
 
           if (
             devData === null ||
@@ -292,9 +281,7 @@ export class Store {
       }
 
       if (shouldDumpToStorage) {
-        this._dumpToStorage().catch((err) => {
-          logger.logDebug("error while dumping to storage: " + err);
-        });
+        await this._dumpToStorage();
       }
     } catch (err) {
       logger.logDebug("error while loading local data store: " + err);

@@ -413,7 +413,7 @@ export class FB {
 
   async generateGuid(): Promise<string> {
     let guid = await this.get("fb-guid");
-    if (guid) {
+    if (guid && guid.length > 0) {
       return guid;
     } else {
       const id = uuid();
