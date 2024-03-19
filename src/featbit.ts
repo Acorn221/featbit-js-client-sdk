@@ -198,6 +198,7 @@ export class FB {
     }
 
     await this.identify(option.user || (await this.createOrGetAnonymousUser()));
+    await this._readyPromise;
   }
 
   async identify(user: IUser): Promise<void> {
