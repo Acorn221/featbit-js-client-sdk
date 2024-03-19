@@ -197,7 +197,7 @@ export class FB {
       );
     }
 
-    await this.identify(option.user || this.createOrGetAnonymousUser());
+    await this.identify(option.user || (await this.createOrGetAnonymousUser()));
   }
 
   async identify(user: IUser): Promise<void> {
@@ -224,7 +224,7 @@ export class FB {
   }
 
   async logout(): Promise<IUser> {
-    const anonymousUser = this.createOrGetAnonymousUser();
+    const anonymousUser = await this.createOrGetAnonymousUser();
     await this.identify(anonymousUser);
     return anonymousUser;
   }
@@ -411,19 +411,19 @@ export class FB {
     return variation;
   }
 
-  generateGuid(): string {
-    let guid = localStorage.getItem("fb-guid");
+  async generateGuid(): Promise<string> {
+    let guid = await this.get("fb-guid");
     if (guid) {
       return guid;
     } else {
       const id = uuid();
-      localStorage.setItem("fb-guid", id);
+      await this.set("fb-guid", id);
       return id;
     }
   }
 
-  createOrGetAnonymousUser(): IUser {
-    const sessionId = this.generateGuid();
+  async createOrGetAnonymousUser(): Promise<IUser> {
+    const sessionId = await this.generateGuid();
   
     return {
       name: sessionId,

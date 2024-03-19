@@ -260,7 +260,7 @@ export class NetworkService {
       return result.data;
     } catch (error) {
       logger.log(error);
-      return !!(this.fb.get(zeroCodeSettingLocalStorageKey))
+      return !!(await this.fb.get(zeroCodeSettingLocalStorageKey))
         ? JSON.parse(
             (await this.fb.get(zeroCodeSettingLocalStorageKey)) as string,
           )

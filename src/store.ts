@@ -78,12 +78,16 @@ export class Store {
 
   set userId(id: string) {
     this._userId = id;
-    this._loadFromStorage();
+    this._loadFromStorage().catch((err) => {
+      logger.logDebug("error while loading from storage: " + err);
+    });
   }
 
   set isDevMode(devMode: boolean) {
     this._isDevMode = devMode;
-    this._loadFromStorage();
+    this._loadFromStorage().catch((err) => {
+      logger.logDebug("error while loading from storage: " + err);
+    });
   }
 
   get isDevMode() {
