@@ -157,11 +157,11 @@ export class FB {
   }
 
   async get(key: string) {
-    return (await this.storage.getItem(`fb_${key}`)) ?? "";
+    return (await this.storage.get(`fb_${key}`)) ?? "";
   }
 
   set(key: string, value: string) {
-    return this.storage.setItem(`fb_${key}`, value);
+    return this.storage.set(`fb_${key}`, value);
   }
 
   removeItem(key: string) {
